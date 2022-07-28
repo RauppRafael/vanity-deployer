@@ -8,6 +8,9 @@ export class Matcher {
     private readonly matchers: { [type in MatcherType]: RegExp | string }
 
     constructor(startsWith, endsWith) {
+        startsWith = startsWith.toLowerCase()
+        endsWith = endsWith.toLowerCase()
+
         this.matchers = {
             [MatcherType.SECRET]: new RegExp(/0x(\d|\w){64}/),
             [MatcherType.ADDRESS]: new RegExp(`0x${ startsWith }(\\d|\\w){${ 40 - startsWith.length - endsWith.length }}${ endsWith }`),

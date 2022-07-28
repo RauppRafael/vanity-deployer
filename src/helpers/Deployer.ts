@@ -3,7 +3,7 @@ import { verify } from './verify'
 import { HardhatHelpers } from './HardhatHelpers'
 import { ContractFactory } from 'ethers'
 import { storage, StorageType } from './storage'
-import deployerABI from '../../abi/Deployer.json'
+import { Deployer__factory } from '../contract-types'
 import kill from 'tree-kill'
 import crossSpawn from 'cross-spawn'
 import { Matcher, MatcherType } from './matcher'
@@ -105,9 +105,8 @@ export class Deployer {
     }
 
     private async _getContract() {
-        return new hre.ethers.Contract(
+        return Deployer__factory.connect(
             await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' }),
-            deployerABI,
             await HardhatHelpers.mainSigner(),
         )
     }

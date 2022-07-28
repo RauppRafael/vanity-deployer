@@ -12,14 +12,14 @@ export class CommandBuilder {
         const executable = this._getExecutable('eradicate2')
         const matchingString = matcher.get(MatcherType.COMMAND)
 
-        return `./"${ executable }" -A ${ deployer } -i ${ bytecodeFilePath } --matching ${ matchingString }`
+        return `"${ executable }" -A ${ deployer } -i ${ bytecodeFilePath } --matching ${ matchingString }`
     }
 
     public static profanity(matcher: Matcher) {
         const executable = this._getExecutable('profanity')
         const matchingString = matcher.get(MatcherType.COMMAND)
 
-        return `./"${ executable }" --contract --matching ${ matchingString }`
+        return `"${ executable }" --contract --matching ${ matchingString }`
     }
 
     private static _getExecutable(name: string) {

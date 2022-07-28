@@ -10,6 +10,7 @@ import { Matcher, MatcherType } from './matcher'
 import { ConstructorArgument } from './types'
 import { CommandBuilder } from './CommandBuilder'
 import { initializeDeployer } from '../scripts/initialize-deployer'
+import { initializeExecutables } from '../scripts/initialize-executables'
 
 interface IProxyInfo {
     name: string
@@ -183,6 +184,8 @@ export class Deployer {
     }
 
     private async initialize() {
+        await initializeExecutables()
+
         if (!await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' }))
             await initializeDeployer(this.matcher)
     }

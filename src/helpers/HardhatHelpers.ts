@@ -1,6 +1,10 @@
 import hre from 'hardhat'
 
 export class HardhatHelpers {
+    static async mainSigner() {
+        return (await hre.ethers.getSigners())[0]
+    }
+
     static parseEther(amount: number | string) {
         return hre.ethers.utils.parseEther(
             typeof amount === 'number'

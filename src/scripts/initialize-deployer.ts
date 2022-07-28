@@ -7,8 +7,7 @@ import { storage, StorageType } from '../helpers/storage'
 import { Matcher, MatcherType } from '../helpers/matcher'
 import { CommandBuilder } from '../helpers/CommandBuilder'
 
-const getPrivateKey = async (startsWith: string, endsWith: string) => {
-    const matcher = new Matcher(startsWith, endsWith)
+const getPrivateKey = async (matcher: Matcher) => {
     const command = CommandBuilder.profanity(matcher)
     const addressMatcher = matcher.get(MatcherType.ADDRESS)
     const secretMatcher = matcher.get(MatcherType.SECRET)
@@ -43,15 +42,7 @@ const getPrivateKey = async (startsWith: string, endsWith: string) => {
 
 const getSigner = pk => new hre.ethers.Wallet(pk, hre.ethers.provider)
 
-const deploy = async ({
-    isProxy,
-    startsWith,
-    endsWith,
-}: {
-    isProxy: boolean
-    startsWith: string
-    endsWith: string
-}) => {
+const deploy = async (isProxy: boolean, matcher: Matcher) => {
     const mainSigner = (await hre.ethers.getSigners())[0]
     const { gasPrice } = await hre.ethers.provider.getFeeData()
     let privateKey = await storage.find({
@@ -60,7 +51,7 @@ const deploy = async ({
     })
 
     if (!privateKey)
-        privateKey = await getPrivateKey(startsWith, endsWith)
+        privateKey = await getPrivateKey(matcher)
 
     const contractDeployer = getSigner(privateKey)
 
@@ -121,12 +112,11 @@ const deploy = async ({
         constructorArguments,
     })
 
-    if (!isProxy) {
-        return deploy({ isProxy: true, startsWith, endsWith })
-    }
+    if (!isProxy)
+        return deploy(true, matcher)
 }
 
-export const initializeDeployer = async (startsWith = '', endsWith = '') => {
+export const initializeDeployer = async (matcher: Matcher) => {
     const deployerAddress = await storage.find({
         type: StorageType.ADDRESS,
         name: 'Deployer',
@@ -137,17 +127,17 @@ export const initializeDeployer = async (startsWith = '', endsWith = '') => {
     })
 
     if (!deployerAddress)
-        await deploy({ isProxy: false, startsWith, endsWith })
+        await deploy(false, matcher)
     else if (!deployerProxyAddress)
-        await deploy({ isProxy: true, startsWith, endsWith })
+        await deploy(true, matcher)
     else {
         const deployedBytecode = await hre.ethers.provider.getCode(deployerAddress)
         const deployedProxyBytecode = await hre.ethers.provider.getCode(deployerProxyAddress)
 
         if (deployedBytecode === '0x')
-            await deploy({ isProxy: false, startsWith, endsWith })
+            await deploy(false, matcher)
         else if (deployedProxyBytecode === '0x')
-            await deploy({ isProxy: true, startsWith, endsWith })
+            await deploy(true, matcher)
         else
             throw new Error('Already deployed')
     }

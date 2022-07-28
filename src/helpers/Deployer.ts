@@ -9,6 +9,7 @@ import crossSpawn from 'cross-spawn'
 import { Matcher, MatcherType } from './matcher'
 import { ConstructorArgument } from './types'
 import { CommandBuilder } from './CommandBuilder'
+import { initializeDeployer } from '../scripts/initialize-deployer'
 
 interface IProxyInfo {
     name: string
@@ -27,6 +28,8 @@ export class Deployer {
         constructorArguments: ConstructorArgument[],
         proxyInfo?: IProxyInfo,
     ) {
+        await this.initialize()
+
         console.log(`Deploying ${ name }`)
 
         const deployerContract = await this._getContract()
@@ -177,5 +180,10 @@ export class Deployer {
         await storage.save({ type: StorageType.SECRET, name: saltKey, value: salt })
 
         return promise
+    }
+
+    private async initialize() {
+        if (!await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' }))
+            await initializeDeployer(this.matcher)
     }
 }

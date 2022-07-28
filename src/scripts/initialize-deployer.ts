@@ -5,10 +5,11 @@ import { HardhatHelpers } from '../helpers/HardhatHelpers'
 import { verify } from '../helpers/verify'
 import { storage, StorageType } from '../helpers/storage'
 import { Matcher, MatcherType } from '../helpers/matcher'
+import { CommandBuilder } from '../helpers/CommandBuilder'
 
 const getPrivateKey = async (startsWith: string, endsWith: string) => {
     const matcher = new Matcher(startsWith, endsWith)
-    const command = `./profanity --contract --matching ${ matcher.get(MatcherType.COMMAND) }`
+    const command = CommandBuilder.profanity(matcher)
     const addressMatcher = matcher.get(MatcherType.ADDRESS)
     const secretMatcher = matcher.get(MatcherType.SECRET)
     const child = await crossSpawn(command)
@@ -51,7 +52,6 @@ const deploy = async ({
     startsWith: string
     endsWith: string
 }) => {
-    console.log('deploying', isProxy, startsWith, endsWith)
     const mainSigner = (await hre.ethers.getSigners())[0]
     const { gasPrice } = await hre.ethers.provider.getFeeData()
     let privateKey = await storage.find({

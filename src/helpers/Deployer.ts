@@ -8,6 +8,7 @@ import kill from 'tree-kill'
 import crossSpawn from 'cross-spawn'
 import { Matcher, MatcherType } from './matcher'
 import { ConstructorArgument } from './types'
+import { CommandBuilder } from './CommandBuilder'
 
 interface IProxyInfo {
     name: string
@@ -92,7 +93,7 @@ export class Deployer {
     public async deployProxy(name: string, constructorArguments: ConstructorArgument[]) {
         const implementation = await this.deploy(name, [])
         const proxy = await this.deploy(
-            'RyzeProxy',
+            'ERC1967Proxy',
             [implementation.address],
             {
                 name,
@@ -141,15 +142,11 @@ export class Deployer {
         if (salt)
             return salt
 
-        // TODO improve using in-memory bytecode
-        // const command = `./eradicate2 -A ${ deployerAddress } --init-code '${ await this._getBytecode(name, constructorArguments) }' --matching ${ this.matcher.get(MatcherType.COMMAND) }`
-
-        const bytecodeFilePath = await this._getBytecode(
-            name,
-            constructorArguments,
-            true,
+        const command = CommandBuilder.eradicate(
+            deployerAddress,
+            await this._getBytecode(name, constructorArguments, true),
+            this.matcher,
         )
-        const command = `./eradicate2 -A ${ deployerAddress } -i ${ bytecodeFilePath } --matching ${ this.matcher.get(MatcherType.COMMAND) }`
         const addressMatcher = this.matcher.get(MatcherType.ADDRESS)
         const secretMatcher = this.matcher.get(MatcherType.SECRET)
         const child = await crossSpawn(command)

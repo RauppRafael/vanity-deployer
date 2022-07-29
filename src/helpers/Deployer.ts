@@ -1,17 +1,14 @@
 import hre from 'hardhat'
-import { verify } from './verify'
+import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
 import { ContractFactory } from 'ethers'
 import { storage, StorageType } from './Storage'
 import { Deployer__factory } from '../contract-types'
-import kill from 'tree-kill'
-import { exec } from 'child_process'
-import { Matcher, MatcherType } from './Matcher'
+import { Matcher } from './Matcher'
 import { ConstructorArgument } from './types'
 import { CommandBuilder } from './CommandBuilder'
 import { initializeDeployer } from '../scripts/initialize-deployer'
 import { initializeExecutables } from '../scripts/initialize-executables'
-import internal from 'stream'
 
 interface IProxyInfo {
     name: string
@@ -78,7 +75,7 @@ export class Deployer {
             value: contractAddress,
         })
 
-        verify.add({
+        Verify.add({
             address: contractAddress,
             deployTransaction,
             constructorArguments,
@@ -146,42 +143,19 @@ export class Deployer {
         if (salt)
             return salt
 
-        const command = CommandBuilder.eradicate(
+        salt = await CommandBuilder.eradicate(
             deployerAddress,
-            await this._getBytecode(name, constructorArguments, true),
+            await this._getBytecode(
+                name,
+                constructorArguments,
+                true,
+            ),
             this.matcher,
         )
-        const addressMatcher = this.matcher.get(MatcherType.ADDRESS)
-        const secretMatcher = this.matcher.get(MatcherType.SECRET)
-        const child = await exec(command)
-
-        let listener: internal.Readable
-
-        const promise: Promise<string> = new Promise((resolve, reject) => {
-            listener = child.stdout.on('data', event => {
-                const line: string = event.toString().toLowerCase()
-
-                if (line.includes('salt') && !!line.match(addressMatcher))
-                    resolve(line.match(secretMatcher)[0])
-            })
-
-            child.on('error', e => {
-                if (e.message.includes(command) && e.message.includes('ENOENT'))
-                    return console.log('Vanity address found')
-
-                reject(e)
-            })
-        })
-
-        salt = await promise
-
-        listener.pause()
-
-        kill(child.pid, 'SIGTERM')
 
         await storage.save({ type: StorageType.SECRET, name: saltKey, value: salt })
 
-        return promise
+        return salt
     }
 
     private async initialize() {

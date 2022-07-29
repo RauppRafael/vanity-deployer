@@ -9,22 +9,28 @@ interface IVerify {
     deployTransaction: ContractTransaction
 }
 
-class Verify {
-    private batch: IVerify[] = []
+export class Verify {
+    public static batch: IVerify[] = []
 
-    public add({ deployTransaction, address, constructorArguments = [], confirmations = 2 }: IVerify) {
+    public static add({
+        deployTransaction,
+        address,
+        constructorArguments = [],
+        confirmations = 2,
+    }: IVerify): void {
         this.batch.push({ deployTransaction, address, constructorArguments, confirmations })
     }
 
-    public async execute() {
+    public static async execute() {
         for (const params of this.batch)
             await this._verify(params)
 
         this.batch = []
     }
 
-    private async _verify({
-        deployTransaction, address,
+    private static async _verify({
+        deployTransaction,
+        address,
         constructorArguments = [],
         confirmations = 2,
     }: IVerify): Promise<void> {
@@ -57,10 +63,8 @@ class Verify {
         }
     }
 
-    private _alreadyVerified(message: string) {
+    private static _alreadyVerified(message: string) {
         return message.includes('reason: already verified')
             || message.includes('contract source code already verified')
     }
 }
-
-export const verify = new Verify()

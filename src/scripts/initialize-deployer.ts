@@ -1,25 +1,26 @@
 import hre from 'hardhat'
-import crossSpawn from 'cross-spawn'
 import kill from 'tree-kill'
 import { HardhatHelpers } from '../helpers/HardhatHelpers'
-import { verify } from '../helpers/verify'
-import { storage, StorageType } from '../helpers/storage'
-import { Matcher, MatcherType } from '../helpers/matcher'
+import { verify } from '../helpers/Verify'
+import { storage, StorageType } from '../helpers/Storage'
+import { Matcher, MatcherType } from '../helpers/Matcher'
 import { CommandBuilder } from '../helpers/CommandBuilder'
+import { exec } from 'child_process'
+import internal from 'stream'
 
 const getPrivateKey = async (matcher: Matcher) => {
     const command = CommandBuilder.profanity(matcher)
     const addressMatcher = matcher.get(MatcherType.ADDRESS)
     const secretMatcher = matcher.get(MatcherType.SECRET)
-    const child = await crossSpawn(command)
+    const child = await exec(command)
 
-    let listener
+    let listener: internal.Readable
 
     const promise: Promise<string> = new Promise((resolve, reject) => {
         listener = child.stdout.on('data', event => {
-            const line: string | undefined = event.toString()?.toLowerCase()
+            const line: string = event.toString().toLowerCase()
 
-            if (line?.includes('private') && !!line?.match(addressMatcher))
+            if (line.includes('private') && !!line.match(addressMatcher))
                 resolve(line.match(secretMatcher)[0])
         })
 

@@ -160,7 +160,9 @@ export class Deployer {
     private async initialize() {
         await initializeExecutables()
 
-        if (!await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' }))
+        const deployerAddress = await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' })
+
+        if (!deployerAddress || (await hre.ethers.provider.getCode(deployerAddress)) === '0x')
             await initializeDeployer(this.matcher)
     }
 }

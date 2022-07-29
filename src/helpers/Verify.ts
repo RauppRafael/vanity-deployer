@@ -48,7 +48,7 @@ export class Verify {
             if (this._alreadyVerified(message))
                 return console.log('Contract already verified')
 
-            if (message.toLowerCase().includes('does not have bytecode')) {
+            if (message.includes('does not have bytecode') || message.includes('has no bytecode')) {
                 console.log('Still no bytecode')
 
                 return this._verify({

@@ -11,7 +11,6 @@ const deploy = async (isProxy: boolean, matcher: Matcher) => {
     console.log(`Deploying deployer${ isProxy ? ' proxy' : '' }`)
 
     const mainSigner = (await hre.ethers.getSigners())[0]
-    const { gasPrice } = await hre.ethers.provider.getFeeData()
 
     let privateKey = await storage.find({
         type: StorageType.SECRET,
@@ -23,13 +22,7 @@ const deploy = async (isProxy: boolean, matcher: Matcher) => {
 
     const contractDeployer = getSigner(privateKey)
 
-    await HardhatHelpers.sendTransaction(
-        mainSigner.sendTransaction({
-            to: contractDeployer.address,
-            gasPrice,
-            value: HardhatHelpers.parseEther(.5),
-        }),
-    )
+    await HardhatHelpers.transferAllFunds(mainSigner, contractDeployer)
 
     const factory = await hre.ethers.getContractFactory(
         isProxy ? 'ERC1967ProxyInitializable' : 'Deployer',
@@ -48,16 +41,7 @@ const deploy = async (isProxy: boolean, matcher: Matcher) => {
 
     await deployerContract.deployTransaction.wait(2)
 
-    const balance = await hre.ethers.provider.getBalance(contractDeployer.address)
-
-    await HardhatHelpers.sendTransaction(
-        contractDeployer.sendTransaction({
-            to: mainSigner.address,
-            value: balance.sub(hre.ethers.BigNumber.from(21000).mul(gasPrice)),
-            gasLimit: 21000,
-            gasPrice,
-        }),
-    )
+    await HardhatHelpers.transferAllFunds(contractDeployer, mainSigner)
 
     await storage.save({
         type: StorageType.ADDRESS,

@@ -9,4 +9,5 @@
 *.exe
 *.x64
 cache-opencl.*
+storage/bytecode/
 ```

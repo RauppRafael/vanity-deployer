@@ -12,9 +12,10 @@ const deploy = async (isProxy: boolean, matcher: Matcher) => {
 
     const mainSigner = (await hre.ethers.getSigners())[0]
     const { gasPrice } = await hre.ethers.provider.getFeeData()
+
     let privateKey = await storage.find({
         type: StorageType.SECRET,
-        name: isProxy ? 'DeployerPrivateKeyProxy' : 'DeployerPrivateKey',
+        name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
     })
 
     if (!privateKey)
@@ -39,10 +40,7 @@ const deploy = async (isProxy: boolean, matcher: Matcher) => {
         ? [
             await storage.find({ type: StorageType.ADDRESS, name: 'Deployer' }),
             (new hre.ethers.utils.Interface(['function initialize(address) external']))
-                .encodeFunctionData(
-                    'initialize',
-                    [process.env.DEPLOYER_ADDRESS],
-                ),
+                .encodeFunctionData('initialize', [process.env.DEPLOYER_ADDRESS]),
         ]
         : []
 
@@ -69,7 +67,7 @@ const deploy = async (isProxy: boolean, matcher: Matcher) => {
 
     await storage.save({
         type: StorageType.SECRET,
-        name: isProxy ? 'DeployerPrivateKeyProxy' : 'DeployerPrivateKey',
+        name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
         value: privateKey,
     })
 

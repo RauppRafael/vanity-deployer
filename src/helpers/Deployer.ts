@@ -1,7 +1,7 @@
 import hre from 'hardhat'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
-import { ContractFactory } from 'ethers'
+import { ContractFactory, ContractTransaction } from 'ethers'
 import { storage, StorageType } from './Storage'
 import { Deployer__factory } from '../contract-types'
 import { Matcher } from './Matcher'
@@ -10,11 +10,6 @@ import { CommandBuilder } from './CommandBuilder'
 import { initializeDeployer } from '../scripts/initialize-deployer'
 import { initializeExecutables } from '../scripts/initialize-executables'
 
-interface IProxyInfo {
-    name: string
-    initializer: string
-}
-
 export class Deployer {
     private readonly matcher: Matcher
 
@@ -22,88 +17,85 @@ export class Deployer {
         this.matcher = new Matcher(startsWith, endsWith)
     }
 
-    public async deploy(
-        name: string,
-        constructorArguments: ConstructorArgument[],
-        proxyInfo?: IProxyInfo,
-    ) {
-        await this.initialize()
-
+    public async deploy(name: string) {
         console.log(`Deploying ${ name }`)
 
-        const deployerContract = await this._getContract()
+        const { deployer, salt, bytecode } = await this._getContractInfo(name)
+        const deployTransaction = await deployer.deployContract(bytecode, salt)
 
-        const salt = await this._getSalt(
+        await deployTransaction.wait(1)
+
+        return this._verifyAndStoreAddress(
             name,
-            constructorArguments,
-            deployerContract.address,
-            proxyInfo,
-        )
-
-        const block = await HardhatHelpers.getBlock()
-
-        let done
-        const contractAddressPromise = new Promise((resolve) => {
-            deployerContract.on('DeployedContract', (address, _, event) => {
-                if (event.blockNumber >= block.number && !done) {
-                    resolve(address)
-                    done = true
-                }
-            })
-        })
-
-        const deployTransaction = proxyInfo
-            ? await deployerContract.deployProxy(
-                await this._getBytecode(name, constructorArguments),
-                salt,
-                proxyInfo.initializer,
-            )
-            : await deployerContract.deployContract(
-                await this._getBytecode(name, constructorArguments),
-                salt,
-            )
-
-        await deployTransaction.wait(3)
-
-        const contractAddress = await contractAddressPromise as string
-
-        await storage.save({
-            type: StorageType.ADDRESS,
-            name: proxyInfo
-                ? `${ proxyInfo?.name }Proxy`
-                : name,
-            value: contractAddress,
-        })
-
-        Verify.add({
-            address: contractAddress,
+            await deployer.getAddress(bytecode, salt),
             deployTransaction,
-            constructorArguments,
-        })
-
-        console.log(`Deployed ${ name }`)
-
-        const signer = await HardhatHelpers.mainSigner()
-
-        return new hre.ethers.Contract(
-            contractAddress,
-            (await hre.ethers.getContractFactory(name, signer)).interface,
-            signer,
         )
     }
 
-    public async deployProxy(name: string, constructorArguments: ConstructorArgument[]) {
-        const implementation = await this.deploy(name, [])
-        const proxy = await this.deploy(
-            'ERC1967Proxy',
-            [implementation.address],
-            {
-                name,
-                initializer: implementation.interface.encodeFunctionData('initialize', constructorArguments),
-            },
+    public async deployAndInitialize(name: string, initializerArguments: ConstructorArgument[]) {
+        console.log(`Deploying ${ name }`)
+
+        const { deployer, salt, bytecode } = await this._getContractInfo(name)
+        const factory = await hre.ethers.getContractFactory(name, await HardhatHelpers.mainSigner())
+
+        const deployTransaction = await deployer.deployContractAndInitialize(
+            bytecode,
+            salt,
+            factory.interface.encodeFunctionData('initialize', initializerArguments),
         )
 
-        return implementation.attach(proxy.address)
+        return this._verifyAndStoreAddress(
+            name,
+            await deployer.getAddress(bytecode, salt),
+            deployTransaction,
+        )
+    }
+
+    public async deployProxy(name: string, initializerArguments: ConstructorArgument[]) {
+        const implementation = await this.deploy(name)
+
+        const ERC1967Proxy = 'ERC1967Proxy'
+        const { deployer, salt, bytecode } = await this._getContractInfo(
+            ERC1967Proxy,
+            `${ name }Proxy:salt`,
+            [implementation.address],
+        )
+
+        const deployTransaction = await deployer.deployContractAndInitialize(
+            bytecode,
+            salt,
+            implementation.interface.encodeFunctionData('initialize', initializerArguments),
+        )
+
+        await deployTransaction.wait(1)
+
+        const proxyAddress = await deployer.getAddress(bytecode, salt)
+
+        await storage.save({ type: StorageType.ADDRESS, name: name + 'Proxy', value: proxyAddress })
+
+        Verify.add({
+            address: proxyAddress,
+            deployTransaction,
+            constructorArguments: [implementation.address],
+        })
+
+        console.log(`Deployed ${ name + 'Proxy' }`)
+
+        return implementation.attach(proxyAddress)
+    }
+
+    private async _getContractInfo(
+        name: string,
+        saltKey = `${ name }:salt`,
+        constructorArguments?: ConstructorArgument[],
+    ) {
+        await this.initialize()
+
+        const deployer = await this._getContract()
+        const salt = await this._getSalt(name, deployer.address, saltKey, constructorArguments)
+        const bytecode = await this._getBytecode(name, constructorArguments)
+
+        return { deployer, salt, bytecode }
     }
 
     private async _getContract() {
@@ -115,7 +107,7 @@ export class Deployer {
 
     private async _getBytecode(
         name: string,
-        constructorArguments: ConstructorArgument[],
+        constructorArguments?: ConstructorArgument[],
         save?: boolean,
     ) {
         const factory = await hre.ethers.getContractFactory(name) as ContractFactory
@@ -130,14 +122,10 @@ export class Deployer {
 
     private async _getSalt(
         name: string,
-        constructorArguments: ConstructorArgument[],
         deployerAddress: string,
-        proxyInfo?: IProxyInfo,
+        saltKey: string,
+        constructorArguments?: ConstructorArgument[],
     ) {
-        const saltKey = proxyInfo
-            ? `${ proxyInfo.name }Proxy:salt`
-            : `${ name }:salt`
-
         let salt = await storage.find({ type: StorageType.SECRET, name: saltKey })
 
         if (salt)
@@ -145,17 +133,28 @@ export class Deployer {
 
         salt = await CommandBuilder.eradicate(
             deployerAddress,
-            await this._getBytecode(
-                name,
-                constructorArguments,
-                true,
-            ),
+            await this._getBytecode(name, constructorArguments, true),
             this.matcher,
         )
 
         await storage.save({ type: StorageType.SECRET, name: saltKey, value: salt })
 
         return salt
+    }
+
+    private async _verifyAndStoreAddress(name: string, address: string, deployTransaction: ContractTransaction) {
+        await storage.save({ type: StorageType.ADDRESS, name, value: address })
+
+        Verify.add({ address: address, deployTransaction })
+
+        console.log(`Deployed ${ name }`)
+
+        await deployTransaction.wait(1)
+
+        return (await hre.ethers.getContractFactory(
+            name,
+            await HardhatHelpers.mainSigner(),
+        )).attach(address)
     }
 
     private async initialize() {

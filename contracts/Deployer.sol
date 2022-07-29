@@ -13,7 +13,10 @@ contract Deployer is OwnableUpgradeable {
         transferOwnership(_owner);
     }
 
-    function deployContract(bytes memory code, bytes32 salt) public onlyOwner {
+    function deployContract(
+        bytes memory code,
+        bytes32 salt
+    ) public onlyOwner {
         address addr;
 
         assembly {
@@ -24,7 +27,7 @@ contract Deployer is OwnableUpgradeable {
         emit DeployedContract(addr, false);
     }
 
-    function deployProxy(
+    function deployContractAndInitialize(
         bytes memory code,
         bytes32 salt,
         bytes memory initializer
@@ -38,8 +41,21 @@ contract Deployer is OwnableUpgradeable {
 
         (bool success,) = addr.call(initializer);
 
-        require(success, "Deployer:: Proxy initialization failed");
+        require(success, "Deployer:: Contract initialization failed");
 
         emit DeployedContract(addr, true);
+    }
+
+    function getAddress(
+        bytes memory code,
+        uint _salt
+    ) public view returns (address) {
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0xff), address(this), _salt, keccak256(code)
+            )
+        );
+
+        return address(uint160(uint(hash)));
     }
 }

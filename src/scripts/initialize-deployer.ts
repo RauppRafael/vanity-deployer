@@ -37,7 +37,10 @@ const deploy = async (isProxy: boolean, matcher: Matcher) => {
         ]
         : []
 
-    const deployerContract = await factory.deploy(...constructorArguments)
+    const deployerContract = await factory.deploy(
+        ...constructorArguments,
+        { gasPrice: await HardhatHelpers.gasPrice() },
+    )
 
     await deployerContract.deployTransaction.wait(2)
 

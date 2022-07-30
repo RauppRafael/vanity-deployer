@@ -30,8 +30,14 @@ export class HardhatHelpers {
         return tx
     }
 
+    static async gasPrice() {
+        const feeData = await hre.ethers.provider.getFeeData()
+
+        return feeData.gasPrice.add(feeData.gasPrice.mul(10).div(100))
+    }
+
     static async transferAllFunds(from: SignerWithAddress | Wallet, to: SignerWithAddress | Wallet) {
-        const { gasPrice } = await hre.ethers.provider.getFeeData()
+        const gasPrice = await this.gasPrice()
 
         await this.sendTransaction(
             from.sendTransaction({

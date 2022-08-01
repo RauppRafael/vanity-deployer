@@ -78,11 +78,11 @@ export const initializeDeployer = async (matcher: Matcher) => {
         name: 'DeployerProxy',
     })
 
-    if (!deployerAddress)
+    if (!deployerAddress) {
         await deploy(false, matcher)
-    else if (!deployerProxyAddress)
+    } else if (!deployerProxyAddress) {
         await deploy(true, matcher)
-    else {
+    } else {
         const deployedBytecode = await hre.ethers.provider.getCode(deployerAddress)
         const deployedProxyBytecode = await hre.ethers.provider.getCode(deployerProxyAddress)
 

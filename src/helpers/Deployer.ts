@@ -1,7 +1,7 @@
 import hre from 'hardhat'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
-import { ContractFactory, ContractTransaction } from 'ethers'
+import { Contract, ContractFactory, ContractTransaction } from 'ethers'
 import { storage, StorageType } from './Storage'
 import { Deployer__factory } from '../contract-types'
 import { Matcher } from './Matcher'
@@ -82,6 +82,15 @@ export class Deployer {
         console.log(`Deployed ${ name + 'Proxy' }`)
 
         return implementation.attach(proxyAddress)
+    }
+
+    public async deployWithoutVanity<T extends Contract>(name: string, args: ConstructorArgument[]) {
+        return await (
+            await hre.ethers.getContractFactory(
+                name,
+                await HardhatHelpers.mainSigner(),
+            )
+        ).deploy(...args) as T
     }
 
     private async _getContractInfo(

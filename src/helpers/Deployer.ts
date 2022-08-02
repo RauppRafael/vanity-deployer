@@ -1,14 +1,15 @@
 import hre from 'hardhat'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
-import { Contract, ContractFactory, ContractTransaction } from 'ethers'
+import { Contract, ContractTransaction } from 'ethers'
 import { storage, StorageType } from './Storage'
 import { Deployer__factory } from '../contract-types'
 import { Matcher } from './Matcher'
 import { ConstructorArgument } from './types'
-import { CommandBuilder } from './CommandBuilder'
 import { initializeDeployer } from '../scripts/initialize-deployer'
 import { initializeExecutables } from '../scripts/initialize-executables'
+import { Bytecode } from './Bytecode'
+import { CommandBuilder } from './CommandBuilder'
 
 export class Deployer {
     private readonly matcher: Matcher
@@ -85,12 +86,16 @@ export class Deployer {
     }
 
     public async deployWithoutVanity<T extends Contract>(name: string, args: ConstructorArgument[]) {
-        return await (
+        const contract = await (
             await hre.ethers.getContractFactory(
                 name,
                 await HardhatHelpers.mainSigner(),
             )
         ).deploy(...args) as T
+
+        await storage.save({ type: StorageType.ADDRESS, name, value: contract.address })
+
+        return contract
     }
 
     private async _getContractInfo(
@@ -102,7 +107,7 @@ export class Deployer {
 
         const deployer = await this._getContract()
         const salt = await this._getSalt(name, deployer.address, saltKey, constructorArguments)
-        const bytecode = await this._getBytecode(name, constructorArguments)
+        const bytecode = await Bytecode.generate(name, constructorArguments)
 
         return { deployer, salt, bytecode }
     }
@@ -112,21 +117,6 @@ export class Deployer {
             await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' }),
             await HardhatHelpers.mainSigner(),
         )
-    }
-
-    private async _getBytecode(
-        name: string,
-        constructorArguments?: ConstructorArgument[],
-        save?: boolean,
-    ) {
-        const factory = await hre.ethers.getContractFactory(name) as ContractFactory
-        const bytecode = constructorArguments?.length
-            ? factory.bytecode + factory.interface.encodeDeploy(constructorArguments).replace('0x', '')
-            : factory.bytecode
-
-        return save
-            ? storage.save({ type: StorageType.BYTECODE, name, value: bytecode })
-            : bytecode
     }
 
     private async _getSalt(
@@ -142,7 +132,7 @@ export class Deployer {
 
         salt = await CommandBuilder.eradicate(
             deployerAddress,
-            await this._getBytecode(name, constructorArguments, true),
+            await Bytecode.generate(name, constructorArguments, true),
             this.matcher,
         )
 

@@ -1,3 +1,5 @@
 export * from './src/helpers/Deployer'
 export * from './src/helpers/Storage'
 export * from './src/helpers/Verify'
+export * from './src/helpers/CommandBuilder'
+export * from './src/helpers/Bytecode'

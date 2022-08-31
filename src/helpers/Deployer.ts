@@ -52,7 +52,7 @@ export class Deployer {
         )
     }
 
-    public async deployProxy(name: string, initializerArguments: ConstructorArgument[]) {
+    public async deployProxy(name: string, initializerArguments: ConstructorArgument[], initializer = 'initialize') {
         const implementation = await this.deploy(name)
 
         const ERC1967Proxy = 'ERC1967Proxy'
@@ -65,7 +65,7 @@ export class Deployer {
         const deployTransaction = await deployer.deployContractAndInitialize(
             bytecode,
             salt,
-            implementation.interface.encodeFunctionData('initialize', initializerArguments),
+            implementation.interface.encodeFunctionData(initializer, initializerArguments),
         )
 
         await deployTransaction.wait(1)

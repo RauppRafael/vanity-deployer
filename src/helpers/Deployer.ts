@@ -1,7 +1,7 @@
 import hre from 'hardhat'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
-import { Contract, ContractTransaction } from 'ethers'
+import { constants, Contract, ContractTransaction } from 'ethers'
 import { storage, StorageType } from './Storage'
 import { Deployer__factory } from '../contract-types'
 import { Matcher } from './Matcher'
@@ -10,6 +10,8 @@ import { initializeDeployer } from '../scripts/initialize-deployer'
 import { initializeExecutables } from '../scripts/initialize-executables'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
+import { GnosisSafe__factory, GnosisSafeProxyFactory__factory } from '../../../../types'
+import { calculateGnosisProxyAddress } from './gnosis'
 
 export class Deployer {
     private readonly matcher: Matcher
@@ -52,7 +54,7 @@ export class Deployer {
         )
     }
 
-    public async deployProxy(name: string, initializerArguments: ConstructorArgument[], initializer = 'initialize') {
+    public async deployProxy(name: string, initializerArguments: ConstructorArgument[]) {
         const implementation = await this.deploy(name)
 
         const ERC1967Proxy = 'ERC1967Proxy'
@@ -65,7 +67,7 @@ export class Deployer {
         const deployTransaction = await deployer.deployContractAndInitialize(
             bytecode,
             salt,
-            implementation.interface.encodeFunctionData(initializer, initializerArguments),
+            implementation.interface.encodeFunctionData('initialize', initializerArguments),
         )
 
         await deployTransaction.wait(1)
@@ -85,6 +87,51 @@ export class Deployer {
         return implementation.attach(proxyAddress)
     }
 
+    public async deployGnosisSafeProxy(owners: string[], threshold: number, salt: string) {
+        const signer = await HardhatHelpers.mainSigner()
+        const safeSingleton = GnosisSafe__factory.connect(
+            '0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552',
+            signer,
+        )
+        const factory = await GnosisSafeProxyFactory__factory.connect(
+            '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2',
+            signer,
+        )
+        const initializer = safeSingleton.interface.encodeFunctionData(
+            'setup',
+            [
+                owners,
+                threshold,
+                constants.AddressZero,
+                constants.HashZero,
+                constants.AddressZero,
+                constants.AddressZero,
+                0,
+                constants.AddressZero,
+            ],
+        )
+
+        await factory.createProxyWithNonce(
+            safeSingleton.address,
+            initializer,
+            salt,
+        )
+
+        const proxy = GnosisSafe__factory.connect(
+            await calculateGnosisProxyAddress(
+                factory,
+                safeSingleton.address,
+                initializer,
+                salt,
+            ),
+            signer,
+        )
+
+        await storage.save({ type: StorageType.ADDRESS, name: 'GnosisSafe', value: proxy.address })
+
+        return proxy
+    }
+
     public async deployWithoutVanity<T extends Contract>(name: string, args: ConstructorArgument[]) {
         const contract = await (
             await hre.ethers.getContractFactory(
@@ -94,6 +141,12 @@ export class Deployer {
         ).deploy(...args) as T
 
         await storage.save({ type: StorageType.ADDRESS, name, value: contract.address })
+
+        Verify.add({
+            address: contract.address,
+            deployTransaction: contract.deployTransaction,
+            constructorArguments: args,
+        })
 
         return contract
     }
@@ -125,12 +178,12 @@ export class Deployer {
         saltKey: string,
         constructorArguments?: ConstructorArgument[],
     ) {
-        let salt = await storage.find({ type: StorageType.SECRET, name: saltKey })
+        // let salt = await storage.find({ type: StorageType.SECRET, name: saltKey })
+        //
+        // if (salt)
+        //     return salt
 
-        if (salt)
-            return salt
-
-        salt = await CommandBuilder.eradicate(
+        const salt = await CommandBuilder.eradicate(
             deployerAddress,
             await Bytecode.generate(name, constructorArguments, true),
             this.matcher,

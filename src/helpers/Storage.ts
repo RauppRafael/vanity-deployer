@@ -7,12 +7,13 @@ export enum StorageType {
 }
 
 const NO_SUCH_FILE = 'no such file or directory'
+const STORAGE = 'storage'
 
 class Storage {
-    async all({ type }) {
+    async all({ type }: { type: StorageType }) {
         let contents
 
-        await this._openDirectory('storage')
+        await this._openDirectory(STORAGE)
 
         try {
             contents = await fs.readFile(type)
@@ -41,8 +42,8 @@ class Storage {
 
     async save({ type, name, value }: { type: StorageType, name: string, value: string }) {
         if (type === StorageType.BYTECODE) {
-            await this._openDirectory('storage')
-            await this._openDirectory('storage/bytecode')
+            await this._openDirectory(STORAGE)
+            await this._openDirectory(StorageType.BYTECODE)
 
             const fileName = `${ type }/${ name }`
 

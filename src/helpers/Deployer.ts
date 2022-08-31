@@ -178,12 +178,12 @@ export class Deployer {
         saltKey: string,
         constructorArguments?: ConstructorArgument[],
     ) {
-        // let salt = await storage.find({ type: StorageType.SECRET, name: saltKey })
-        //
-        // if (salt)
-        //     return salt
+        let salt = await storage.find({ type: StorageType.SECRET, name: saltKey })
 
-        const salt = await CommandBuilder.eradicate(
+        if (salt)
+            return salt
+
+        salt = await CommandBuilder.eradicate(
             deployerAddress,
             await Bytecode.generate(name, constructorArguments, true),
             this.matcher,

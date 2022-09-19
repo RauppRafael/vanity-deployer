@@ -19,25 +19,31 @@ export class Deployer {
         this.matcher = new Matcher(startsWith, endsWith)
     }
 
-    public async deploy<T extends Contract>(name: string) {
-        console.log(`Deploying ${ name }`)
+    public async deploy<T extends Contract>(name: string, saveAs: string = name) {
+        console.log(`Deploying ${ saveAs }`)
 
-        const { deployer, salt, bytecode } = await this._getContractInfo(name)
+        const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
         const deployTransaction = await deployer.deployContract(bytecode, salt)
 
         await deployTransaction.wait(1)
 
         return await this._verifyAndStoreAddress(
             name,
+            saveAs,
             await deployer.getAddress(bytecode, salt),
             deployTransaction,
         ) as T
     }
 
-    public async deployAndInitialize<T extends Contract>(name: string, initializerArguments: ConstructorArgument[]) {
-        console.log(`Deploying ${ name }`)
+    public async deployAndInitialize<T extends Contract>(
+        name: string,
+        initializerArguments: ConstructorArgument[],
+        saveAs: string = name,
+    ) {
+        console.log(`Deploying ${ saveAs }`)
 
-        const { deployer, salt, bytecode } = await this._getContractInfo(name)
+        const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
+
         const factory = await hre.ethers.getContractFactory(name, await HardhatHelpers.mainSigner())
 
         const deployTransaction = await deployer.deployContractAndInitialize(
@@ -48,18 +54,23 @@ export class Deployer {
 
         return await this._verifyAndStoreAddress(
             name,
+            saveAs,
             await deployer.getAddress(bytecode, salt),
             deployTransaction,
         ) as T
     }
 
-    public async deployProxy<T extends Contract>(name: string, initializerArguments: ConstructorArgument[]) {
-        const implementation = await this.deploy(name)
+    public async deployProxy<T extends Contract>(
+        name: string,
+        initializerArguments: ConstructorArgument[],
+        saveAs: string = name,
+    ) {
+        const implementation = await this.deploy(name, saveAs)
 
         const ERC1967Proxy = 'ERC1967Proxy'
         const { deployer, salt, bytecode } = await this._getContractInfo(
             ERC1967Proxy,
-            `${ name }Proxy:salt`,
+            `${ saveAs }Proxy`,
             [implementation.address],
         )
 
@@ -73,7 +84,7 @@ export class Deployer {
 
         const proxyAddress = await deployer.getAddress(bytecode, salt)
 
-        await storage.save({ type: StorageType.ADDRESS, name: name + 'Proxy', value: proxyAddress })
+        await storage.save({ type: StorageType.ADDRESS, name: saveAs + 'Proxy', value: proxyAddress })
 
         Verify.add({
             address: proxyAddress,
@@ -81,7 +92,7 @@ export class Deployer {
             constructorArguments: [implementation.address],
         })
 
-        console.log(`Deployed ${ name + 'Proxy' }`)
+        console.log(`Deployed ${ saveAs + 'Proxy' }`)
 
         return implementation.attach(proxyAddress) as T
     }
@@ -131,20 +142,24 @@ export class Deployer {
         return proxy
     }
 
-    public async deployWithoutVanity<T extends Contract>(name: string, args: ConstructorArgument[]) {
+    public async deployWithoutVanity<T extends Contract>(
+        name: string,
+        constructorArguments: ConstructorArgument[],
+        saveAs: string = name,
+    ) {
         const contract = await (
             await hre.ethers.getContractFactory(
                 name,
                 await HardhatHelpers.mainSigner(),
             )
-        ).deploy(...args) as T
+        ).deploy(...constructorArguments) as T
 
-        await storage.save({ type: StorageType.ADDRESS, name, value: contract.address })
+        await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contract.address })
 
         Verify.add({
             address: contract.address,
             deployTransaction: contract.deployTransaction,
-            constructorArguments: args,
+            constructorArguments,
         })
 
         return contract
@@ -152,14 +167,14 @@ export class Deployer {
 
     private async _getContractInfo(
         name: string,
-        saltKey = `${ name }:salt`,
-        constructorArguments?: ConstructorArgument[],
+        saveAs: string,
+        constructorArguments: ConstructorArgument[],
     ) {
         await this.initialize()
 
         const deployer = await this._getContract()
-        const salt = await this._getSalt(name, deployer.address, saltKey, constructorArguments)
-        const bytecode = await Bytecode.generate(name, constructorArguments)
+        const salt = await this._getSalt(name, saveAs, deployer.address, constructorArguments)
+        const { bytecode } = await Bytecode.generate(name, { constructorArguments })
 
         return { deployer, salt, bytecode }
     }
@@ -173,10 +188,12 @@ export class Deployer {
 
     private async _getSalt(
         name: string,
+        saveAs: string,
         deployerAddress: string,
-        saltKey: string,
-        constructorArguments?: ConstructorArgument[],
+        constructorArguments: ConstructorArgument[],
     ) {
+        const saltKey = saveAs + ':salt'
+
         let salt = await storage.find({ type: StorageType.SECRET, name: saltKey })
 
         if (salt)
@@ -184,7 +201,7 @@ export class Deployer {
 
         salt = await CommandBuilder.eradicate(
             deployerAddress,
-            await Bytecode.generate(name, constructorArguments, true),
+            (await Bytecode.generate(name, { constructorArguments, saveAs })).filename,
             this.matcher,
         )
 
@@ -193,12 +210,17 @@ export class Deployer {
         return salt
     }
 
-    private async _verifyAndStoreAddress(name: string, address: string, deployTransaction: ContractTransaction) {
-        await storage.save({ type: StorageType.ADDRESS, name, value: address })
+    private async _verifyAndStoreAddress(
+        name: string,
+        saveAs: string,
+        address: string,
+        deployTransaction: ContractTransaction,
+    ) {
+        await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: address })
 
         Verify.add({ address: address, deployTransaction })
 
-        console.log(`Deployed ${ name }`)
+        console.log(`Deployed ${ saveAs }`)
 
         await deployTransaction.wait(1)
 

@@ -10,7 +10,7 @@ const NO_SUCH_FILE = 'no such file or directory'
 const STORAGE = 'storage'
 
 class Storage {
-    async all({ type }: { type: StorageType }) {
+    public async all({ type }: { type: StorageType }) {
         let contents
 
         await this._openDirectory(STORAGE)
@@ -29,18 +29,22 @@ class Storage {
         return JSON.parse(contents.toString())
     }
 
-    async find({ type, name }: { type: StorageType, name: string }): Promise<string | undefined> {
+    public async find({ type, name }: { type: StorageType, name: string }): Promise<string | undefined> {
         return (await this.all({ type }))?.[name]
     }
 
-    async saveAll({ type, data }: { type: StorageType, data: string[] }) {
+    public async findAddress(name: string): Promise<string> {
+        return this.find({ type: StorageType.ADDRESS, name })
+    }
+
+    public async saveAll({ type, data }: { type: StorageType, data: string[] }) {
         return await fs.writeFile(
             type,
             JSON.stringify(data, null, 4),
         )
     }
 
-    async save({ type, name, value }: { type: StorageType, name: string, value: string }) {
+    public async save({ type, name, value }: { type: StorageType, name: string, value: string }) {
         if (type === StorageType.BYTECODE) {
             await this._openDirectory(STORAGE)
             await this._openDirectory(StorageType.BYTECODE)

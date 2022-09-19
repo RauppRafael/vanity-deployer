@@ -19,7 +19,7 @@ export class Deployer {
         this.matcher = new Matcher(startsWith, endsWith)
     }
 
-    public async deploy(name: string) {
+    public async deploy<T extends Contract>(name: string) {
         console.log(`Deploying ${ name }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name)
@@ -27,14 +27,14 @@ export class Deployer {
 
         await deployTransaction.wait(1)
 
-        return this._verifyAndStoreAddress(
+        return await this._verifyAndStoreAddress(
             name,
             await deployer.getAddress(bytecode, salt),
             deployTransaction,
-        )
+        ) as T
     }
 
-    public async deployAndInitialize(name: string, initializerArguments: ConstructorArgument[]) {
+    public async deployAndInitialize<T extends Contract>(name: string, initializerArguments: ConstructorArgument[]) {
         console.log(`Deploying ${ name }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name)
@@ -46,14 +46,14 @@ export class Deployer {
             factory.interface.encodeFunctionData('initialize', initializerArguments),
         )
 
-        return this._verifyAndStoreAddress(
+        return await this._verifyAndStoreAddress(
             name,
             await deployer.getAddress(bytecode, salt),
             deployTransaction,
-        )
+        ) as T
     }
 
-    public async deployProxy(name: string, initializerArguments: ConstructorArgument[]) {
+    public async deployProxy<T extends Contract>(name: string, initializerArguments: ConstructorArgument[]) {
         const implementation = await this.deploy(name)
 
         const ERC1967Proxy = 'ERC1967Proxy'
@@ -83,7 +83,7 @@ export class Deployer {
 
         console.log(`Deployed ${ name + 'Proxy' }`)
 
-        return implementation.attach(proxyAddress)
+        return implementation.attach(proxyAddress) as T
     }
 
     public async deployGnosisSafeProxy(owners: string[], threshold: number, salt: string) {

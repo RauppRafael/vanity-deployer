@@ -19,11 +19,11 @@ export class Deployer {
         this.matcher = new Matcher(startsWith, endsWith)
     }
 
-    public async deploy<T extends Contract>(name: string, saveAs: string = name) {
+    public async deploy<T extends Contract>(name: string, saveAs: string = name, gasLimit?: string) {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
-        const deployTransaction = await deployer.deployContract(bytecode, salt)
+        const deployTransaction = await deployer.deployContract(bytecode, salt, { gasLimit })
 
         await deployTransaction.wait(1)
 
@@ -64,10 +64,11 @@ export class Deployer {
         name: string,
         initializerArguments: ConstructorArgument[],
         saveAs: string = name,
+        proxyContractPath?: string,
     ) {
         const implementation = await this.deploy(name, saveAs)
 
-        const ERC1967Proxy = 'ERC1967Proxy'
+        const ERC1967Proxy = proxyContractPath || 'ERC1967Proxy'
         const { deployer, salt, bytecode } = await this._getContractInfo(
             ERC1967Proxy,
             `${ saveAs }Proxy`,

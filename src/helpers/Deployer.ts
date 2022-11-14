@@ -121,11 +121,13 @@ export class Deployer {
             ],
         )
 
-        await factory.createProxyWithNonce(
-            safeSingleton.address,
-            initializer,
-            salt,
-        )
+        await (
+            await factory.createProxyWithNonce(
+                safeSingleton.address,
+                initializer,
+                salt,
+            )
+        ).wait(1)
 
         const proxy = GnosisSafe__factory.connect(
             await calculateGnosisProxyAddress(

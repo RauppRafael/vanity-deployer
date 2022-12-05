@@ -5,18 +5,15 @@ import { Verify } from '../helpers/Verify'
 import { storage, StorageType } from '../helpers/Storage'
 import { Matcher } from '../helpers/Matcher'
 import { CommandBuilder } from '../helpers/CommandBuilder'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 const getSigner = pk => new hre.ethers.Wallet(pk, hre.ethers.provider)
 
 const deploy = async (isProxy: boolean, matcher: Matcher) => {
-    let mainSigner: SignerWithAddress
+    const mainSigner = (await hre.ethers.getSigners())[0]
     let contractDeployer: Wallet
 
     try {
         console.log(`Deploying deployer${ isProxy ? ' proxy' : '' }`)
-
-        mainSigner = (await hre.ethers.getSigners())[0]
 
         let privateKey = await storage.find({
             type: StorageType.SECRET,

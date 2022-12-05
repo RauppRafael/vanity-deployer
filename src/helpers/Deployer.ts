@@ -1,7 +1,7 @@
 import hre from 'hardhat'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
-import { constants, Contract, ContractTransaction } from 'ethers'
+import { constants, Contract, ContractTransaction, Overrides } from 'ethers'
 import { storage, StorageType } from './Storage'
 import { Deployer__factory, GnosisSafe__factory, GnosisSafeProxyFactory__factory } from '../contract-types'
 import { Matcher } from './Matcher'
@@ -19,11 +19,11 @@ export class Deployer {
         this.matcher = new Matcher(startsWith, endsWith)
     }
 
-    public async deploy<T extends Contract>(name: string, saveAs: string = name, gasLimit?: string) {
+    public async deploy<T extends Contract>(name: string, saveAs: string = name, overrides?: Overrides) {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
-        const deployTransaction = await deployer.deployContract(bytecode, salt, { gasLimit })
+        const deployTransaction = await deployer.deployContract(bytecode, salt, overrides)
 
         await deployTransaction.wait(1)
 
@@ -64,11 +64,10 @@ export class Deployer {
         name: string,
         initializerArguments: ConstructorArgument[],
         saveAs: string = name,
-        proxyContractPath?: string,
     ) {
         const implementation = await this.deploy(name, saveAs)
 
-        const ERC1967Proxy = proxyContractPath || 'ERC1967Proxy'
+        const ERC1967Proxy = 'ERC1967Proxy'
         const { deployer, salt, bytecode } = await this._getContractInfo(
             ERC1967Proxy,
             `${ saveAs }Proxy`,

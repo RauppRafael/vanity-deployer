@@ -1,7 +1,7 @@
 import hre from 'hardhat'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
-import { constants, Contract, ContractTransaction } from 'ethers'
+import { constants, Contract, ContractTransaction, Overrides } from 'ethers'
 import { storage, StorageType } from './Storage'
 import { Deployer__factory, GnosisSafe__factory, GnosisSafeProxyFactory__factory } from '../contract-types'
 import { Matcher } from './Matcher'
@@ -19,11 +19,11 @@ export class Deployer {
         this.matcher = new Matcher(startsWith, endsWith)
     }
 
-    public async deploy<T extends Contract>(name: string, saveAs: string = name) {
+    public async deploy<T extends Contract>(name: string, saveAs: string = name, overrides?: Overrides) {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
-        const deployTransaction = await deployer.deployContract(bytecode, salt)
+        const deployTransaction = await deployer.deployContract(bytecode, salt, overrides)
 
         await deployTransaction.wait(1)
 

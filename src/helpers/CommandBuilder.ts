@@ -68,6 +68,12 @@ export class CommandBuilder {
     }
 
     private static _getExecutable(name: string) {
-        return path.join(__dirname, '../executables', name)
+        return path.join(
+            __dirname,
+            '../executables',
+            process.platform === 'linux' 
+                ? `${ name }.x64`
+                : name
+        )
     }
 }

@@ -19,7 +19,11 @@ export class Deployer {
         this.matcher = new Matcher(startsWith, endsWith)
     }
 
-    public async deploy<T extends Contract>(name: string, saveAs: string = name, overrides?: Overrides) {
+    public async deploy<T extends Contract>(
+        name: string,
+        saveAs: string = name,
+        overrides: Overrides = {}
+    ) {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])

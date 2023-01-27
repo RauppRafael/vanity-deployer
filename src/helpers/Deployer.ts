@@ -3,7 +3,11 @@ import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
 import { constants, Contract, ContractTransaction, Overrides } from 'ethers'
 import { storage, StorageType } from './Storage'
-import { Deployer__factory, GnosisSafe__factory, GnosisSafeProxyFactory__factory } from '../contract-types'
+import {
+    Deployer__factory,
+    GnosisSafe__factory,
+    GnosisSafeProxyFactory__factory,
+} from '../contract-types'
 import { Matcher } from './Matcher'
 import { ConstructorArgument } from './types'
 import { initializeDeployer } from '../scripts/initialize-deployer'
@@ -22,7 +26,7 @@ export class Deployer {
     public async deploy<T extends Contract>(
         name: string,
         saveAs: string = name,
-        overrides: Overrides = {}
+        overrides: Overrides = {},
     ) {
         console.log(`Deploying ${ saveAs }`)
 
@@ -67,9 +71,19 @@ export class Deployer {
     public async deployProxy<T extends Contract>(
         name: string,
         initializerArguments: ConstructorArgument[],
-        saveAs: string = name,
+        {
+            saveAs,
+            implementation,
+        }: {
+            saveAs?: string,
+            implementation?: Contract
+        } = {},
     ) {
-        const implementation = await this.deploy(name, saveAs)
+        if (!saveAs)
+            saveAs = name
+
+        if (!implementation)
+            implementation = await this.deploy(name, saveAs)
 
         const ERC1967Proxy = 'ERC1967Proxy'
         const { deployer, salt, bytecode } = await this._getContractInfo(
@@ -88,7 +102,11 @@ export class Deployer {
 
         const proxyAddress = await deployer.getAddress(bytecode, salt)
 
-        await storage.save({ type: StorageType.ADDRESS, name: saveAs + 'Proxy', value: proxyAddress })
+        await storage.save({
+            type: StorageType.ADDRESS,
+            name: saveAs + 'Proxy',
+            value: proxyAddress,
+        })
 
         Verify.add({
             address: proxyAddress,
@@ -239,7 +257,10 @@ export class Deployer {
     private async initialize() {
         await initializeExecutables()
 
-        const deployerAddress = await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' })
+        const deployerAddress = await storage.find({
+            type: StorageType.ADDRESS,
+            name: 'DeployerProxy',
+        })
 
         if (!deployerAddress || (await hre.ethers.provider.getCode(deployerAddress)) === '0x')
             await initializeDeployer(this.matcher)

@@ -1,4 +1,4 @@
-import dayjs from 'dayjs'
+import dayjs, { Dayjs } from 'dayjs'
 import path from 'path'
 import { Matcher, MatcherType } from './Matcher'
 import { exec } from 'child_process'
@@ -40,6 +40,7 @@ export class CommandBuilder {
         const child = await exec(command)
 
         let listener: internal.Readable
+        let matchTimestamp: Dayjs
 
         const promise: Promise<string> = new Promise((resolve, reject) => {
             listener = child.stdout.on('data', async event => {
@@ -48,9 +49,9 @@ export class CommandBuilder {
                 if (!line.match(addressMatcher))
                     return
 
-                const matchTimestamp = dayjs()
+                matchTimestamp = dayjs()
 
-                if (initialTimestamp.add(this.MIN_DURATION, 'ms').isAfter(matchTimestamp)){
+                if (initialTimestamp.add(this.MIN_DURATION, 'ms').isAfter(matchTimestamp)) {
                     const duration = this.MIN_DURATION - matchTimestamp.diff(initialTimestamp)
 
                     await sleep(duration)
@@ -69,6 +70,7 @@ export class CommandBuilder {
 
         try {
             console.log(`Found: ${ await promise }`)
+            console.log(`Duration: ${ matchTimestamp.diff(initialTimestamp) }ms`)
 
             child.removeAllListeners()
 

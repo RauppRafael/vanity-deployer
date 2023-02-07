@@ -1,7 +1,7 @@
 # Ryze Vanity Deployer
 
 ## Run in the root of your toolkit
-```npm i tree-kill @openzeppelin/contracts-upgradeable @gnosis.pm/safe-contracts```
+```npm i dayjs tree-kill @openzeppelin/contracts-upgradeable @gnosis.pm/safe-contracts```
 
 ## Run in this folder
 ```npm run generate:types```

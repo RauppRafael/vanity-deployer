@@ -33,7 +33,7 @@ class Storage {
         return (await this.all({ type }))?.[name]
     }
 
-    public async findAddress(name: string): Promise<string> {
+    public async findAddress(name: string): Promise<string | undefined> {
         return this.find({ type: StorageType.ADDRESS, name })
     }
 

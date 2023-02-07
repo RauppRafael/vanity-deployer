@@ -1,0 +1,121 @@
+import hre from 'hardhat'
+import { Wallet } from 'ethers'
+import { HardhatHelpers } from './HardhatHelpers'
+import { Verify } from './Verify'
+import { storage, StorageType } from './Storage'
+import { Matcher } from './Matcher'
+import { CommandBuilder } from './CommandBuilder'
+
+export class DeployerInitializer {
+    constructor(
+        private readonly matcher: Matcher,
+        private readonly proxyContract: string,
+    ) {
+    }
+
+    public async initialize(): Promise<void> {
+        const deployerAddress = await storage.find({
+            type: StorageType.ADDRESS,
+            name: 'Deployer',
+        })
+        const deployerProxyAddress = await storage.find({
+            type: StorageType.ADDRESS,
+            name: 'DeployerProxy',
+        })
+
+        if (!deployerAddress) {
+            await this.deploy(false)
+        }
+        else if (!deployerProxyAddress) {
+            await this.deploy(true)
+        }
+        else {
+            const deployedBytecode = await hre.ethers.provider.getCode(deployerAddress)
+            const deployedProxyBytecode = await hre.ethers.provider.getCode(deployerProxyAddress)
+
+            if (deployedBytecode === '0x')
+                await this.deploy(false)
+            else if (deployedProxyBytecode === '0x')
+                await this.deploy(true)
+            else
+                throw new Error('Already deployed')
+        }
+
+        await Verify.execute()
+    }
+
+    private async deploy(isProxy: boolean) {
+        const mainSigner = (await hre.ethers.getSigners())[0]
+        let contractDeployer: Wallet
+
+        try {
+            console.log(`Deploying deployer${ isProxy ? ' proxy' : '' }`)
+
+            let privateKey = await storage.find({
+                type: StorageType.SECRET,
+                name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
+            })
+
+            if (!privateKey)
+                privateKey = await CommandBuilder.profanity(this.matcher)
+
+            contractDeployer = this.getSigner(privateKey)
+
+            await HardhatHelpers.transferAllFunds(mainSigner, contractDeployer)
+
+            const factory = await hre.ethers.getContractFactory(
+                isProxy ? this.proxyContract : 'Deployer',
+                contractDeployer,
+            )
+
+            const constructorArguments = isProxy
+                ? [
+                    await storage.find({ type: StorageType.ADDRESS, name: 'Deployer' }),
+                    (new hre.ethers.utils.Interface(['function initialize(address) external']))
+                        .encodeFunctionData('initialize', [process.env.DEPLOYER_ADDRESS]),
+                ]
+                : []
+
+            const deployerContract = await factory.deploy(
+                ...constructorArguments,
+                { gasPrice: await HardhatHelpers.gasPrice() },
+            )
+
+            await deployerContract.deployTransaction.wait(2)
+
+            await HardhatHelpers.transferAllFunds(contractDeployer, mainSigner)
+
+            await storage.save({
+                type: StorageType.ADDRESS,
+                name: isProxy ? 'DeployerProxy' : 'Deployer',
+                value: deployerContract.address,
+            })
+
+            await storage.save({
+                type: StorageType.SECRET,
+                name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
+                value: privateKey,
+            })
+
+            Verify.add({
+                deployTransaction: deployerContract.deployTransaction,
+                address: deployerContract.address,
+                constructorArguments,
+            })
+
+            if (!isProxy)
+                return this.deploy(true)
+        }
+        catch (error) {
+            console.log('Error: returning funds to main signer')
+
+            await HardhatHelpers.transferAllFunds(contractDeployer, mainSigner)
+
+            throw error
+        }
+    }
+
+    private getSigner(pk) {
+        return new hre.ethers.Wallet(pk, hre.ethers.provider)
+    }
+}

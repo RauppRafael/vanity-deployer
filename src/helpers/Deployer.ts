@@ -5,12 +5,13 @@ import { constants, Contract, ContractTransaction, Overrides } from 'ethers'
 import { storage, StorageType } from './Storage'
 import {
     Deployer__factory,
+    GnosisSafe,
     GnosisSafe__factory,
     GnosisSafeProxyFactory__factory,
 } from '../contract-types'
 import { Matcher } from './Matcher'
 import { ConstructorArgument } from './types'
-import { initializeDeployer } from '../scripts/initialize-deployer'
+import { DeployerInitializer } from './DeployerInitializer'
 import { initializeExecutables } from '../scripts/initialize-executables'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
@@ -18,16 +19,36 @@ import { calculateGnosisProxyAddress } from './gnosis'
 
 export class Deployer {
     private readonly matcher: Matcher
+    private readonly deployerInitializer: DeployerInitializer
+    private readonly proxyContract: string
+    private readonly DEFAULT_PROXY_CONTRACT = 'ERC1967Proxy'
 
-    public constructor(startsWith = '', endsWith = '') {
-        this.matcher = new Matcher(startsWith, endsWith)
+    public constructor({
+        startsWith,
+        endsWith,
+        proxyContract,
+        proxyInitializableContract,
+    }: {
+        startsWith?: string
+        endsWith?: string
+        proxyContract?: string
+        proxyInitializableContract?: string
+    }) {
+        this.matcher = new Matcher(startsWith || '', endsWith || '')
+
+        this.deployerInitializer = new DeployerInitializer(
+            this.matcher,
+            proxyInitializableContract || this.DEFAULT_PROXY_CONTRACT,
+        )
+
+        this.proxyContract = proxyContract || this.DEFAULT_PROXY_CONTRACT
     }
 
     public async deploy<T extends Contract>(
         name: string,
         saveAs: string = name,
         overrides: Overrides = {},
-    ) {
+    ): Promise<T> {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
@@ -47,7 +68,7 @@ export class Deployer {
         name: string,
         initializerArguments: ConstructorArgument[],
         saveAs: string = name,
-    ) {
+    ): Promise<T> {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
@@ -78,16 +99,15 @@ export class Deployer {
             saveAs?: string,
             implementation?: Contract
         } = {},
-    ) {
+    ): Promise<T> {
         if (!saveAs)
             saveAs = name
 
         if (!implementation)
             implementation = await this.deploy(name, saveAs)
 
-        const ERC1967Proxy = 'ERC1967Proxy'
         const { deployer, salt, bytecode } = await this._getContractInfo(
-            ERC1967Proxy,
+            this.proxyContract,
             `${ saveAs }Proxy`,
             [implementation.address],
         )
@@ -119,7 +139,11 @@ export class Deployer {
         return implementation.attach(proxyAddress) as T
     }
 
-    public async deployGnosisSafeProxy(owners: string[], threshold: number, salt: string) {
+    public async deployGnosisSafeProxy(
+        owners: string[],
+        threshold: number,
+        salt: string,
+    ): Promise<GnosisSafe> {
         const signer = await HardhatHelpers.mainSigner()
         const safeSingleton = GnosisSafe__factory.connect(
             '0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552',
@@ -170,7 +194,7 @@ export class Deployer {
         name: string,
         constructorArguments: ConstructorArgument[],
         saveAs: string = name,
-    ) {
+    ): Promise<T> {
         const contract = await (
             await hre.ethers.getContractFactory(
                 name,
@@ -263,6 +287,6 @@ export class Deployer {
         })
 
         if (!deployerAddress || (await hre.ethers.provider.getCode(deployerAddress)) === '0x')
-            await initializeDeployer(this.matcher)
+            await this.deployerInitializer.initialize()
     }
 }

@@ -70,7 +70,7 @@ export class CommandBuilder {
 
         try {
             console.log(`Found: ${ await promise }`)
-            console.log(`Duration: ${ matchTimestamp.diff(initialTimestamp) }ms`)
+            console.log(`Duration: ${ matchTimestamp.diff(initialTimestamp, 's', true).toFixed(3) }s`)
 
             child.removeAllListeners()
 

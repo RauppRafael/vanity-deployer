@@ -64,7 +64,7 @@ export class DeployerInitializer {
             await HardhatHelpers.transferAllFunds(mainSigner, contractDeployer)
 
             const factory = await hre.ethers.getContractFactory(
-                isProxy ? this.proxyContract : 'Deployer',
+                isProxy ? this.proxyContract : 'VanityDeployer',
                 contractDeployer,
             )
 

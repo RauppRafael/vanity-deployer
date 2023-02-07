@@ -22,6 +22,7 @@ export class Deployer {
     private readonly deployerInitializer: DeployerInitializer
     private readonly proxyContract: string
     private readonly DEFAULT_PROXY_CONTRACT = 'ERC1967Proxy'
+    private readonly DEFAULT_VANITY_PROXY_CONTRACT = 'VanityProxy'
 
     public constructor({
         startsWith,
@@ -41,7 +42,7 @@ export class Deployer {
             proxyInitializableContract || this.DEFAULT_PROXY_CONTRACT,
         )
 
-        this.proxyContract = proxyContract || this.DEFAULT_PROXY_CONTRACT
+        this.proxyContract = proxyContract || this.DEFAULT_VANITY_PROXY_CONTRACT
     }
 
     public async deploy<T extends Contract>(

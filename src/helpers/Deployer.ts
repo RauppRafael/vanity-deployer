@@ -1,4 +1,4 @@
-import hre from 'hardhat'
+import hre, { upgrades } from 'hardhat'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
 import { constants, Contract, ContractTransaction, Overrides } from 'ethers'
@@ -164,6 +164,47 @@ export class Deployer {
         await storage.save({ type: StorageType.ADDRESS, name: 'GnosisSafe', value: proxy.address })
 
         return proxy
+    }
+
+    public async deployProxyWithoutVanity<T extends Contract>(
+        name: string,
+        initializerArguments: ConstructorArgument[],
+        saveAs: string = name,
+    ) {
+        const proxy = (await upgrades.deployProxy(
+            await hre.ethers.getContractFactory(
+                name,
+                await HardhatHelpers.mainSigner(),
+          ),
+          initializerArguments,
+        )) as T
+
+        await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: proxy.address })
+
+        return proxy
+    }
+
+    public async deployAndInitializeWithoutVanity<T extends Contract>(
+        name: string,
+        initializerArguments: ConstructorArgument[],
+        saveAs: string = name
+    ) {
+        console.log(`Deploying ${ name } without vanity`)
+
+        const contract = await this.deployWithoutVanity<T>(name, [], saveAs)
+
+        const tx = await contract.initialize(...initializerArguments)
+
+        await tx.wait()
+
+        Verify.add({
+            address: contract.address,
+            deployTransaction: contract.deployTransaction,
+        })
+
+        console.log(`${ name } deployed @ ${ contract.address }`)
+
+        return contract
     }
 
     public async deployWithoutVanity<T extends Contract>(

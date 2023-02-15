@@ -175,8 +175,8 @@ export class Deployer {
             await hre.ethers.getContractFactory(
                 name,
                 await HardhatHelpers.mainSigner(),
-          ),
-          initializerArguments,
+            ),
+            initializerArguments,
         )) as T
 
         await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: proxy.address })

@@ -197,11 +197,6 @@ export class Deployer {
 
         await tx.wait()
 
-        Verify.add({
-            address: contract.address,
-            deployTransaction: contract.deployTransaction,
-        })
-
         console.log(`${ name } deployed @ ${ contract.address }`)
 
         return contract

@@ -10,13 +10,9 @@ import {
 import {
     getTransactionByHash,
     getImplementationAddress,
-    getBeaconAddress,
-    getImplementationAddressFromBeacon,
     UpgradesError,
     getAdminAddress,
     isTransparentOrUUPSProxy,
-    isBeacon,
-    isBeaconProxy,
     isEmptySlot,
 } from '@openzeppelin/upgrades-core'
 import artifactsBuildInfo from '@openzeppelin/upgrades-core/artifacts/build-info.json'
@@ -24,8 +20,6 @@ import artifactsBuildInfo from '@openzeppelin/upgrades-core/artifacts/build-info
 import { HardhatRuntimeEnvironment, RunSuperFunction } from 'hardhat/types'
 
 import ERC1967Proxy from '@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol/ERC1967Proxy.json'
-import BeaconProxy from '@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol/BeaconProxy.json'
-import UpgradeableBeacon from '@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol/UpgradeableBeacon.json'
 import TransparentUpgradeableProxy from '@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json'
 import ProxyAdmin from '@openzeppelin/upgrades-core/artifacts/@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol/ProxyAdmin.json'
 
@@ -56,14 +50,12 @@ interface VerifiableContractInfo {
  */
 const verifiableContracts = {
     erc1967proxy: { artifact: ERC1967Proxy, event: 'Upgraded(address)' },
-    beaconProxy: { artifact: BeaconProxy, event: 'BeaconUpgraded(address)' },
-    upgradeableBeacon: { artifact: UpgradeableBeacon, event: 'OwnershipTransferred(address,address)' },
     transparentUpgradeableProxy: { artifact: TransparentUpgradeableProxy, event: 'AdminChanged(address,address)' },
     proxyAdmin: { artifact: ProxyAdmin, event: 'OwnershipTransferred(address,address)' },
 }
 
 /**
- * Overrides hardhat-etherscan's verify:verify subtask to fully verify a proxy or beacon.
+ * Overrides hardhat-etherscan's verify:verify subtask to fully verify a proxy.
  *
  * Verifies the contract at an address. If the address is an ERC-1967 compatible proxy, verifies the proxy and associated proxy contracts,
  * as well as the implementation. Otherwise, calls hardhat-etherscan's verify function directly.
@@ -91,29 +83,18 @@ export async function verify(args: any, hre: HardhatRuntimeEnvironment, runSuper
     const proxyAddress = args.address
     const errors: string[] = []
 
-    let beacon = false
-
     if (await isTransparentOrUUPSProxy(provider, proxyAddress)) {
         await fullVerifyTransparentOrUUPS(hre, proxyAddress, hardhatVerify, errors)
-    }
-    else if (await isBeaconProxy(provider, proxyAddress)) {
-        await fullVerifyBeaconProxy(hre, proxyAddress, hardhatVerify, errors)
-    }
-    else if (await isBeacon(provider, proxyAddress)) {
-        beacon = true
-        const etherscanApi = await getEtherscanAPIConfig(hre)
-
-        await fullVerifyBeacon(hre, proxyAddress, hardhatVerify, etherscanApi, errors)
     }
     else {
         // Doesn't look like a proxy, so just verify directly
         return hardhatVerify(proxyAddress)
     }
 
-    if (errors.length > 0) 
+    if (errors.length > 0)
         throw new UpgradesError(getVerificationErrorSummary(errors))
 
-    console.info(`\n${ beacon ? 'Beacon' : 'Proxy' } fully verified.`)
+    console.info(`\nProxy fully verified.`)
 
     async function hardhatVerify(address: string) {
         return await runSuper({ ...args, address })
@@ -231,71 +212,6 @@ async function fullVerifyTransparentOrUUPS(
 }
 
 /**
- * Fully verifies all contracts related to the given beacon proxy address: implementation, beacon, and beacon proxy.
- * Also links the proxy to the implementation ABI on Etherscan.
- *
- * @param hre
- * @param proxyAddress The beacon proxy address
- * @param hardhatVerify A function that invokes the hardhat-etherscan plugin's verify command
- * @errors Accumulated verification errors
- */
-async function fullVerifyBeaconProxy(
-    hre: HardhatRuntimeEnvironment,
-    proxyAddress: any,
-    hardhatVerify: (address: string) => Promise<any>,
-    errors: string[],
-) {
-    const provider = hre.network.provider
-    const beaconAddress = await getBeaconAddress(provider, proxyAddress)
-    const implAddress = await getImplementationAddressFromBeacon(provider, beaconAddress)
-    const etherscanApi = await getEtherscanAPIConfig(hre)
-
-    await fullVerifyBeacon(hre, beaconAddress, hardhatVerify, etherscanApi, errors)
-    await verifyBeaconProxy()
-    await linkProxyWithImplementationAbi(etherscanApi, proxyAddress, implAddress, errors)
-
-    async function verifyBeaconProxy() {
-        console.log(`Verifying beacon proxy: ${ proxyAddress }`)
-        await verifyContractWithCreationEvent(hre, etherscanApi, proxyAddress, [verifiableContracts.beaconProxy], errors)
-    }
-}
-
-/**
- * Verifies all contracts resulting from a beacon deployment: implementation, beacon
- *
- * @param hre
- * @param beaconAddress The beacon address
- * @param hardhatVerify A function that invokes the hardhat-etherscan plugin's verify command
- * @param etherscanApi Configuration for the Etherscan API
- * @errors Accumulated verification errors
- */
-async function fullVerifyBeacon(
-    hre: HardhatRuntimeEnvironment,
-    beaconAddress: any,
-    hardhatVerify: (address: string) => Promise<any>,
-    etherscanApi: EtherscanAPIConfig,
-    errors: string[],
-) {
-    const provider = hre.network.provider
-
-    const implAddress = await getImplementationAddressFromBeacon(provider, beaconAddress)
-
-    await verifyImplementation(hardhatVerify, implAddress, errors)
-    await verifyBeacon()
-
-    async function verifyBeacon() {
-        console.log(`Verifying beacon: ${ beaconAddress }`)
-        await verifyContractWithCreationEvent(
-            hre,
-            etherscanApi,
-            beaconAddress,
-            [verifiableContracts.upgradeableBeacon],
-            errors,
-        )
-    }
-}
-
-/**
  * Runs hardhat-etherscan plugin's verify command on the given implementation address.
  *
  * @param hardhatVerify A function that invokes the hardhat-etherscan plugin's verify command
@@ -312,11 +228,11 @@ async function verifyImplementation(
         await hardhatVerify(implAddress)
     }
     catch (e: any) {
-        if (e.message.toLowerCase().includes('already verified')) 
+        if (e.message.toLowerCase().includes('already verified'))
             console.log(`Implementation ${ implAddress } already verified.`)
-        else 
+        else
             recordVerificationError(implAddress, 'implementation', e.message, errors)
-        
+
     }
 }
 
@@ -340,9 +256,9 @@ async function searchEvent(
         const contractInfo = possibleContractInfo[i]
         const txHash = await getContractCreationTxHash(address, contractInfo.event, etherscanApi)
 
-        if (txHash !== undefined) 
+        if (txHash !== undefined)
             return { contractInfo, txHash }
-        
+
     }
 
     const events = possibleContractInfo.map(contractInfo => {
@@ -438,18 +354,18 @@ async function verifyContractWithConstructorArgs(
         })
         const status = await getVerificationStatus(etherscanApi.endpoints.urls.apiURL, statusRequest)
 
-        if (status.isVerificationSuccess()) 
+        if (status.isVerificationSuccess())
             console.log(`Successfully verified contract ${ artifact.contractName } at ${ address }.`)
-        else 
+        else
             recordVerificationError(address, artifact.contractName, status.message, errors)
-        
+
     }
     catch (e: any) {
-        if (e.message.toLowerCase().includes('already verified')) 
+        if (e.message.toLowerCase().includes('already verified'))
             console.log(`Contract at ${ address } already verified.`)
-        else 
+        else
             recordVerificationError(address, artifact.contractName, e.message, errors)
-        
+
     }
 }
 
@@ -530,9 +446,9 @@ async function linkProxyWithImplementationAbi(
         }
     }
 
-    if (responseBody.status === RESPONSE_OK) 
+    if (responseBody.status === RESPONSE_OK)
         console.log('Successfully linked proxy to implementation.')
-    else 
+    else
         recordError(`Failed to link proxy ${ proxyAddress } with its implementation. Reason: ${ responseBody.result }`, errors)
 
     async function delay(ms: number): Promise<void> {
@@ -559,9 +475,9 @@ async function checkProxyVerificationStatus(etherscanApi: EtherscanAPIConfig, gu
  * @returns the encoded constructor args, or undefined if txInput does not start with the creationCode.
  */
 function inferConstructorArgs(txInput: string, creationCode: string) {
-    if (txInput.startsWith(creationCode)) 
+    if (txInput.startsWith(creationCode))
         return txInput.substring(creationCode.length)
-    else 
+    else
         return undefined
-    
+
 }

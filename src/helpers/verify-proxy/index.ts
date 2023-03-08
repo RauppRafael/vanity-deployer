@@ -94,7 +94,7 @@ export async function verify(args: any, hre: HardhatRuntimeEnvironment, runSuper
     if (errors.length > 0)
         throw new UpgradesError(getVerificationErrorSummary(errors))
 
-    console.info(`\nProxy fully verified.`)
+    console.info('\nProxy fully verified.')
 
     async function hardhatVerify(address: string) {
         return await runSuper({ ...args, address })

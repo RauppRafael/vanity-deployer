@@ -1,12 +1,14 @@
+import dayjs, { Dayjs } from 'dayjs'
 import path from 'path'
 import { Matcher, MatcherType } from './Matcher'
 import { exec } from 'child_process'
 import internal from 'stream'
 import kill from 'tree-kill'
+import { sleep } from './sleep'
 
 export class CommandBuilder {
-    // TODO improve using in-memory bytecode
-    // `./eradicate2 -A ${ deployerAddress } --init-code '${ await this._getBytecode(name, constructorArguments) }' --matching ${ this.matcher.get(MatcherType.COMMAND) }`
+    private static MIN_DURATION = 3_500
+
     public static eradicate(
         deployer: string,
         bytecodeFilePath: string,
@@ -34,16 +36,26 @@ export class CommandBuilder {
     private static async run(command: string, matcher: Matcher): Promise<string> {
         const addressMatcher = matcher.get(MatcherType.ADDRESS)
         const secretMatcher = matcher.get(MatcherType.SECRET)
+        const initialTimestamp = dayjs()
         const child = await exec(command)
 
         let listener: internal.Readable
+        let matchTimestamp: Dayjs
 
         const promise: Promise<string> = new Promise((resolve, reject) => {
-            listener = child.stdout.on('data', event => {
+            listener = child.stdout.on('data', async event => {
                 const line: string = event.toString().toLowerCase()
 
                 if (!line.match(addressMatcher))
                     return
+
+                matchTimestamp = dayjs()
+
+                if (initialTimestamp.add(this.MIN_DURATION, 'ms').isAfter(matchTimestamp)) {
+                    const duration = this.MIN_DURATION - matchTimestamp.diff(initialTimestamp)
+
+                    await sleep(duration)
+                }
 
                 listener.destroy()
                 kill(child.pid, 'SIGTERM')
@@ -51,18 +63,20 @@ export class CommandBuilder {
                 resolve(line.match(secretMatcher)[0])
             })
 
-            child.on('exit', (code) => {
+            child.on('exit', code => {
                 reject(code)
             })
         })
 
         try {
             console.log(`Found: ${ await promise }`)
+            console.log(`Duration: ${ matchTimestamp.diff(initialTimestamp, 's', true).toFixed(3) }s`)
 
             child.removeAllListeners()
 
             return promise
-        } catch (e) {
+        }
+        catch (e) {
             return this.run(command, matcher)
         }
     }
@@ -71,9 +85,9 @@ export class CommandBuilder {
         return path.join(
             __dirname,
             '../executables',
-            process.platform === 'linux' 
+            process.platform === 'linux'
                 ? `${ name }.x64`
-                : name
+                : name,
         )
     }
 }

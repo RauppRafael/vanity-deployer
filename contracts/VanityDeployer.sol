@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.18;
 
-import "./OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract Deployer is OwnableUpgradeable {
+contract VanityDeployer is OwnableUpgradeable, UUPSUpgradeable {
     event DeployedContract(address indexed contractAddress, bool proxy);
 
     function initialize(address _owner) initializer virtual public {
@@ -58,4 +59,6 @@ contract Deployer is OwnableUpgradeable {
 
         return address(uint160(uint(hash)));
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 }

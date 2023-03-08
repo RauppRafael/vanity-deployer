@@ -7,7 +7,7 @@ export enum MatcherType {
 export class Matcher {
     private readonly matchers: { [type in MatcherType]: RegExp | string }
 
-    constructor(startsWith, endsWith) {
+    public constructor(startsWith: string, endsWith: string) {
         startsWith = startsWith.toLowerCase()
         endsWith = endsWith.toLowerCase()
 
@@ -18,7 +18,7 @@ export class Matcher {
         }
     }
 
-    get(type: MatcherType) {
+    public get(type: MatcherType) {
         return this.matchers[type]
     }
 }

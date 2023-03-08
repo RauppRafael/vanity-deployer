@@ -21,7 +21,7 @@ export class Verify {
         this.batch.push({ deployTransaction, address, constructorArguments, confirmations })
     }
 
-    public static async execute() {
+    public static async execute(): Promise<void> {
         for (const params of this.batch)
             await this._verify(params)
 
@@ -41,7 +41,8 @@ export class Verify {
                 address: address,
                 constructorArguments,
             })
-        } catch (_error) {
+        }
+        catch (_error) {
             const error = _error as Error
             const message = error.message.toLowerCase()
 

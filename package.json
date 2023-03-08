@@ -12,9 +12,11 @@
         "@typechain/ethers-v5": "^10.1.0",
         "typechain": "^8.1.0"
     },
-    "peerDependencies": {
+    "optionalDependencies": {
         "@gnosis.pm/safe-contracts": "^1.3.0",
-        "@openzeppelin/contracts-upgradeable": "4.5.2",
-        "tree-kill": "^1.2.2"
+        "@openzeppelin/contracts": "4.8.1",
+        "@openzeppelin/contracts-upgradeable": "4.8.1",
+        "tree-kill": "^1.2.2",
+        "dayjs": "^1.11.7"
     }
 }

@@ -2,3 +2,5 @@ src/contract-types
 node_modules
 .idea
 dist
+artifacts
+cache

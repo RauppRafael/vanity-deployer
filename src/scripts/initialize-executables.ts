@@ -14,7 +14,8 @@ export const initializeExecutables = async () => {
                 file => fs.readFile(`./${ file }`),
             ),
         )
-    } catch (e) {
+    }
+    catch (e) {
         await Promise.all(
             files.map(
                 file => fs.copyFile(path.join(__dirname, '../executables', file), `./${ file }`),

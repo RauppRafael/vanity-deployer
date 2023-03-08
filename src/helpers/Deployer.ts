@@ -1,7 +1,8 @@
 import hre from 'hardhat'
+import { getVanityProxyFactory } from './factories'
 import { Verify } from './Verify'
 import { HardhatHelpers } from './HardhatHelpers'
-import { constants, Contract, ContractTransaction, Overrides } from 'ethers'
+import { constants, Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
 import { storage, StorageType } from './Storage'
 import {
     Deployer__factory,
@@ -20,29 +21,16 @@ import { calculateGnosisProxyAddress } from './gnosis'
 export class Deployer {
     private readonly matcher: Matcher
     private readonly deployerInitializer: DeployerInitializer
-    private readonly proxyContract: string
-    private readonly DEFAULT_PROXY_CONTRACT = 'ERC1967Proxy'
-    private readonly DEFAULT_VANITY_PROXY_CONTRACT = 'VanityProxy'
 
     public constructor({
         startsWith,
         endsWith,
-        proxyContract,
-        proxyInitializableContract,
     }: {
         startsWith?: string
         endsWith?: string
-        proxyContract?: string
-        proxyInitializableContract?: string
     }) {
         this.matcher = new Matcher(startsWith || '', endsWith || '')
-
-        this.deployerInitializer = new DeployerInitializer(
-            this.matcher,
-            proxyInitializableContract || this.DEFAULT_PROXY_CONTRACT,
-        )
-
-        this.proxyContract = proxyContract || this.DEFAULT_VANITY_PROXY_CONTRACT
+        this.deployerInitializer = new DeployerInitializer(this.matcher)
     }
 
     public async deploy<T extends Contract>(
@@ -107,10 +95,13 @@ export class Deployer {
         if (!implementation)
             implementation = await this.deploy(name, saveAs)
 
+        const signer = (await hre.ethers.getSigners())[0]
+
         const { deployer, salt, bytecode } = await this._getContractInfo(
-            this.proxyContract,
+            'VanityProxy',
             `${ saveAs }Proxy`,
             [implementation.address],
+            await getVanityProxyFactory(signer),
         )
 
         const deployTransaction = await deployer.deployContractAndInitialize(
@@ -218,12 +209,13 @@ export class Deployer {
         name: string,
         saveAs: string,
         constructorArguments: ConstructorArgument[],
+        factory?: ContractFactory,
     ) {
         await this.initialize()
 
         const deployer = await this._getContract()
-        const salt = await this._getSalt(name, saveAs, deployer.address, constructorArguments)
-        const { bytecode } = await Bytecode.generate(name, { constructorArguments })
+        const { bytecode, filename } = await Bytecode.generate(name, { constructorArguments, factory })
+        const salt = await this._getSalt(filename,  saveAs, deployer.address)
 
         return { deployer, salt, bytecode }
     }
@@ -236,10 +228,9 @@ export class Deployer {
     }
 
     private async _getSalt(
-        name: string,
+        bytecodeFilename: string,
         saveAs: string,
         deployerAddress: string,
-        constructorArguments: ConstructorArgument[],
     ) {
         const saltKey = saveAs + ':salt'
 
@@ -250,7 +241,7 @@ export class Deployer {
 
         salt = await CommandBuilder.eradicate(
             deployerAddress,
-            (await Bytecode.generate(name, { constructorArguments, saveAs })).filename,
+            bytecodeFilename,
             this.matcher,
         )
 

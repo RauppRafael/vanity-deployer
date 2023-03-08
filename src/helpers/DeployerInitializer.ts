@@ -67,7 +67,7 @@ export class DeployerInitializer {
 
             const constructorArguments = isProxy
                 ? [
-                    await storage.find({ type: StorageType.ADDRESS, name: 'Deployer' }),
+                    (await storage.find({ type: StorageType.ADDRESS, name: 'Deployer' }))!,
                     (new hre.ethers.utils.Interface(['function initialize(address) external']))
                         .encodeFunctionData('initialize', [(await hre.ethers.getSigners())[0].address]),
                 ]
@@ -78,7 +78,7 @@ export class DeployerInitializer {
                 { gasPrice: await HardhatHelpers.gasPrice() },
             )
 
-            await deployerContract.deployTransaction.wait(2)
+            await HardhatHelpers.sendTransaction(deployerContract.deployTransaction)
 
             await HardhatHelpers.transferAllFunds(contractDeployer, mainSigner)
 

@@ -5,11 +5,11 @@ import { HardhatHelpers } from './HardhatHelpers'
 import { constants, Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
 import { storage, StorageType } from './Storage'
 import {
-    Deployer__factory,
+    VanityDeployer__factory,
     GnosisSafe,
     GnosisSafe__factory,
     GnosisSafeProxyFactory__factory,
-} from '../contract-types'
+} from '../../types'
 import { Matcher } from './Matcher'
 import { ConstructorArgument } from './types'
 import { DeployerInitializer } from './DeployerInitializer'
@@ -214,15 +214,26 @@ export class Deployer {
         await this.initialize()
 
         const deployer = await this._getContract()
-        const { bytecode, filename } = await Bytecode.generate(name, { constructorArguments, factory })
-        const salt = await this._getSalt(filename,  saveAs, deployer.address)
+        const { bytecode, filename } = await Bytecode.generate(name, {
+            constructorArguments,
+            factory,
+        })
+        const salt = await this._getSalt(filename, saveAs, deployer.address)
 
         return { deployer, salt, bytecode }
     }
 
     private async _getContract() {
-        return Deployer__factory.connect(
-            await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' }),
+        const deployerAddress = await storage.find({
+            type: StorageType.ADDRESS,
+            name: 'DeployerProxy',
+        })
+
+        if (!deployerAddress)
+            throw new Error('Deployer address not found')
+
+        return VanityDeployer__factory.connect(
+            deployerAddress,
             await HardhatHelpers.mainSigner(),
         )
     }

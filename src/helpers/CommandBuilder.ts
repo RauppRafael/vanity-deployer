@@ -39,11 +39,11 @@ export class CommandBuilder {
         const initialTimestamp = dayjs()
         const child = await exec(command)
 
-        let listener: internal.Readable
-        let matchTimestamp: Dayjs
+        let listener: internal.Readable | undefined
+        let matchTimestamp: Dayjs | undefined
 
         const promise: Promise<string> = new Promise((resolve, reject) => {
-            listener = child.stdout.on('data', async event => {
+            listener = child.stdout?.on('data', async event => {
                 const line: string = event.toString().toLowerCase()
 
                 if (!line.match(addressMatcher))
@@ -57,10 +57,17 @@ export class CommandBuilder {
                     await sleep(duration)
                 }
 
-                listener.destroy()
-                kill(child.pid, 'SIGTERM')
+                listener?.destroy()
 
-                resolve(line.match(secretMatcher)[0])
+                if (child.pid !== undefined)
+                    kill(child.pid, 'SIGTERM')
+
+                const result = line.match(secretMatcher)
+
+                if (!result)
+                    throw new Error('Line result is null')
+
+                resolve(result[0])
             })
 
             child.on('exit', code => {
@@ -70,7 +77,7 @@ export class CommandBuilder {
 
         try {
             console.log(`Found: ${ await promise }`)
-            console.log(`Duration: ${ matchTimestamp.diff(initialTimestamp, 's', true).toFixed(3) }s`)
+            console.log(`Duration: ${ matchTimestamp?.diff(initialTimestamp, 's', true).toFixed(3) || '-' }s`)
 
             child.removeAllListeners()
 

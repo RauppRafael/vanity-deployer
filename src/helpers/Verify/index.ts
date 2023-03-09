@@ -1,17 +1,16 @@
-import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ContractTransaction } from 'ethers'
 import hre from 'hardhat'
-import { ERC1967ProxyArtifact, VanityDeployerArtifact, VanityProxyArtifact } from '../artifacts'
+import { ERC1967ProxyArtifact } from '../artifacts'
 import { HardhatHelpers } from '../HardhatHelpers'
 import { ConstructorArgument } from '../types'
-import { ContractArtifact, ContractType } from './interfaces'
+import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { Etherscan } from './Etherscan'
 
 interface IVerify {
-    contractType: ContractType
     contractAddress: string
     constructorArguments?: ConstructorArgument[]
     deployTransaction: ContractTransaction
+    isProxy: boolean
     confirmations?: number
 }
 
@@ -19,17 +18,17 @@ export class Verify {
     public static batch: IVerify[] = []
 
     public static add({
-        contractType,
         contractAddress,
         constructorArguments = [],
         deployTransaction,
+        isProxy,
         confirmations = 2,
     }: IVerify): void {
         Verify.batch.push({
             contractAddress,
             constructorArguments,
-            contractType,
             deployTransaction,
+            isProxy,
             confirmations,
         })
     }
@@ -44,32 +43,22 @@ export class Verify {
     private static async _verify({
         contractAddress,
         constructorArguments = [],
-        contractType,
         deployTransaction,
+        isProxy,
         confirmations = 2,
     }: IVerify): Promise<void> {
         try {
             await deployTransaction.wait(confirmations)
 
-            if (
-                contractType === ContractType.VanityProxy ||
-                contractType === ContractType.ERC1967Proxy
-            ) {
+            if (isProxy) {
                 await Verify._verifyProxy({
-                    contractType,
                     contractAddress,
                     constructorArguments,
                     deployTransaction,
+                    isProxy,
                 })
             }
-            else if (contractType === ContractType.VanityDeployer) {
-                await Etherscan.requestEtherscanVerification(
-                    contractAddress,
-                    VanityDeployerArtifact,
-                    '',
-                )
-            }
-            else if (contractType === ContractType.Implementation) {
+            else {
                 await hre.run('verify:verify', {
                     address: contractAddress,
                     constructorArguments,
@@ -87,10 +76,10 @@ export class Verify {
                 console.log('Still no bytecode')
 
                 return Verify._verify({
-                    contractType,
                     contractAddress,
                     constructorArguments,
                     deployTransaction,
+                    isProxy,
                     confirmations: confirmations + 3,
                 })
             }
@@ -100,32 +89,21 @@ export class Verify {
     }
 
     private static async _verifyProxy({
-        contractType,
         contractAddress,
         constructorArguments,
     }: IVerify) {
         const provider = hre.network.provider
         const implAddress = await getImplementationAddress(provider, contractAddress)
 
-        let artifact: ContractArtifact | undefined
-
-        if (contractType === ContractType.ERC1967Proxy)
-            artifact = ERC1967ProxyArtifact
-        else if (contractType === ContractType.VanityProxy)
-            artifact = VanityProxyArtifact
-
-        if (!artifact)
-            throw new Error('Contract type is not a valid proxy')
-
         const contractFactory = await hre.ethers.getContractFactory(
-            artifact.abi,
-            artifact.bytecode,
+            ERC1967ProxyArtifact.abi,
+            ERC1967ProxyArtifact.bytecode,
             await HardhatHelpers.mainSigner(),
         )
 
         await Etherscan.requestEtherscanVerification(
             contractAddress,
-            artifact,
+            ERC1967ProxyArtifact,
             contractFactory.interface.encodeDeploy(constructorArguments).replace('0x', ''),
         )
 
@@ -137,5 +115,3 @@ export class Verify {
             || message.includes('contract source code already verified')
     }
 }
-
-export { ContractType }

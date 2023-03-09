@@ -1,11 +1,12 @@
-import { Wallet } from 'ethers'
+import { Contract, Wallet } from 'ethers'
 import hre from 'hardhat'
 import { CommandBuilder } from './CommandBuilder'
-import { getERC1967ProxyFactory, getVanityDeployerFactory } from './factories'
+import { getERC1967ProxyFactory } from './factories'
 import { HardhatHelpers } from './HardhatHelpers'
 import { Matcher } from './Matcher'
 import { storage, StorageType } from './Storage'
-import { Verify , ContractType } from './Verify'
+import { ConstructorArgument } from './types'
+import { Verify } from './Verify'
 
 export class DeployerInitializer {
     constructor(private readonly matcher: Matcher) {
@@ -61,22 +62,33 @@ export class DeployerInitializer {
 
             await HardhatHelpers.transferAllFunds(mainSigner, contractDeployer)
 
-            const factory = isProxy
-                ? await getERC1967ProxyFactory(contractDeployer)
-                : await getVanityDeployerFactory(contractDeployer)
+            let deployerContract: Contract | undefined
+            let constructorArguments: ConstructorArgument[] = []
 
-            const constructorArguments = isProxy
-                ? [
+            if (isProxy) {
+                const factory = await getERC1967ProxyFactory(contractDeployer)
+
+                constructorArguments = [
                     (await storage.find({ type: StorageType.ADDRESS, name: 'Deployer' }))!,
                     (new hre.ethers.utils.Interface(['function initialize(address) external']))
                         .encodeFunctionData('initialize', [(await hre.ethers.getSigners())[0].address]),
                 ]
-                : []
 
-            const deployerContract = await factory.deploy(
-                ...constructorArguments,
-                { gasPrice: await HardhatHelpers.gasPrice() },
-            )
+                deployerContract = await factory.deploy(
+                    ...constructorArguments,
+                    { gasPrice: await HardhatHelpers.gasPrice() },
+                )
+            }
+            else {
+                const factory = await hre.ethers.getContractFactory(
+                    'VanityDeployer',
+                    contractDeployer,
+                )
+
+                deployerContract = await factory.deploy(
+                    { gasPrice: await HardhatHelpers.gasPrice() },
+                )
+            }
 
             await HardhatHelpers.sendTransaction(deployerContract.deployTransaction)
 
@@ -95,9 +107,9 @@ export class DeployerInitializer {
             })
 
             Verify.add({
-                contractType: isProxy ? ContractType.ERC1967Proxy : ContractType.VanityDeployer,
                 contractAddress: deployerContract.address,
                 deployTransaction: deployerContract.deployTransaction,
+                isProxy,
                 constructorArguments,
             })
 

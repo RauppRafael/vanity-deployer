@@ -1,17 +1,11 @@
-import { constants, Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
+import { Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
 import hre from 'hardhat'
-import {
-    GnosisSafe,
-    GnosisSafe__factory,
-    GnosisSafeProxyFactory__factory,
-    VanityDeployer__factory,
-} from '../../types'
+import { VanityDeployer__factory, } from '../../types'
 import { initializeExecutables } from '../scripts/initialize-executables'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
 import { DeployerInitializer } from './DeployerInitializer'
 import { getERC1967ProxyFactory } from './factories'
-import { calculateGnosisProxyAddress } from './gnosis'
 import { HardhatHelpers } from './HardhatHelpers'
 import { Matcher } from './Matcher'
 import { storage, StorageType } from './Storage'
@@ -138,57 +132,6 @@ export class Deployer {
         console.log(`Deployed ${ saveAs + 'Proxy' }`)
 
         return implementation.attach(proxyAddress) as T
-    }
-
-    public async deployGnosisSafeProxy(
-        owners: string[],
-        threshold: number,
-        salt: string,
-    ): Promise<GnosisSafe> {
-        const signer = await HardhatHelpers.mainSigner()
-        const safeSingleton = GnosisSafe__factory.connect(
-            '0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552',
-            signer,
-        )
-        const factory = await GnosisSafeProxyFactory__factory.connect(
-            '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2',
-            signer,
-        )
-        const initializer = safeSingleton.interface.encodeFunctionData(
-            'setup',
-            [
-                owners,
-                threshold,
-                constants.AddressZero,
-                constants.HashZero,
-                constants.AddressZero,
-                constants.AddressZero,
-                0,
-                constants.AddressZero,
-            ],
-        )
-
-        await (
-            await factory.createProxyWithNonce(
-                safeSingleton.address,
-                initializer,
-                salt,
-            )
-        ).wait(1)
-
-        const proxy = GnosisSafe__factory.connect(
-            await calculateGnosisProxyAddress(
-                factory,
-                safeSingleton.address,
-                initializer,
-                salt,
-            ),
-            signer,
-        )
-
-        await storage.save({ type: StorageType.ADDRESS, name: 'GnosisSafe', value: proxy.address })
-
-        return proxy
     }
 
     public async deployWithoutVanity<T extends Contract>(

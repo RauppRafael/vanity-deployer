@@ -1,11 +1,11 @@
-import hre from 'hardhat'
 import { Wallet } from 'ethers'
+import hre from 'hardhat'
+import { CommandBuilder } from './CommandBuilder'
 import { getERC1967ProxyFactory, getVanityDeployerFactory } from './factories'
 import { HardhatHelpers } from './HardhatHelpers'
-import { Verify } from './Verify'
-import { storage, StorageType } from './Storage'
 import { Matcher } from './Matcher'
-import { CommandBuilder } from './CommandBuilder'
+import { storage, StorageType } from './Storage'
+import { Verify , ContractType } from './Verify'
 
 export class DeployerInitializer {
     constructor(private readonly matcher: Matcher) {
@@ -95,8 +95,9 @@ export class DeployerInitializer {
             })
 
             Verify.add({
+                contractType: isProxy ? ContractType.ERC1967Proxy : ContractType.VanityDeployer,
+                contractAddress: deployerContract.address,
                 deployTransaction: deployerContract.deployTransaction,
-                address: deployerContract.address,
                 constructorArguments,
             })
 

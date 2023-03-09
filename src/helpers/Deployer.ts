@@ -1,22 +1,22 @@
-import hre from 'hardhat'
-import { getVanityProxyFactory } from './factories'
-import { Verify } from './Verify'
-import { HardhatHelpers } from './HardhatHelpers'
 import { constants, Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
-import { storage, StorageType } from './Storage'
+import hre from 'hardhat'
 import {
-    VanityDeployer__factory,
     GnosisSafe,
     GnosisSafe__factory,
     GnosisSafeProxyFactory__factory,
+    VanityDeployer__factory,
 } from '../../types'
-import { Matcher } from './Matcher'
-import { ConstructorArgument } from './types'
-import { DeployerInitializer } from './DeployerInitializer'
 import { initializeExecutables } from '../scripts/initialize-executables'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
+import { DeployerInitializer } from './DeployerInitializer'
+import { getVanityProxyFactory } from './factories'
 import { calculateGnosisProxyAddress } from './gnosis'
+import { HardhatHelpers } from './HardhatHelpers'
+import { Matcher } from './Matcher'
+import { storage, StorageType } from './Storage'
+import { ConstructorArgument } from './types'
+import { Verify, ContractType } from './Verify'
 
 export class Deployer {
     private readonly matcher: Matcher
@@ -121,7 +121,8 @@ export class Deployer {
         })
 
         Verify.add({
-            address: proxyAddress,
+            contractType: ContractType.VanityProxy,
+            contractAddress: proxyAddress,
             deployTransaction,
             constructorArguments: [implementation.address],
         })
@@ -197,7 +198,8 @@ export class Deployer {
         await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contract.address })
 
         Verify.add({
-            address: contract.address,
+            contractType: ContractType.Implementation,
+            contractAddress: contract.address,
             deployTransaction: contract.deployTransaction,
             constructorArguments,
         })
@@ -269,7 +271,11 @@ export class Deployer {
     ) {
         await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: address })
 
-        Verify.add({ address: address, deployTransaction })
+        Verify.add({
+            contractType: ContractType.Implementation,
+            contractAddress: address,
+            deployTransaction,
+        })
 
         console.log(`Deployed ${ saveAs }`)
 

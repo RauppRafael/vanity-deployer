@@ -1,8 +1,6 @@
 import hre from 'hardhat'
 import { Signer } from 'ethers'
-import VanityDeployer from '../../artifacts/contracts/VanityDeployer.sol/VanityDeployer.json'
-import VanityProxy from '../../artifacts/contracts/VanityProxy.sol/VanityProxy.json'
-import ERC1967Proxy from '../../artifacts/@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol/ERC1967Proxy.json'
+import { ERC1967Proxy, VanityDeployer, VanityProxy } from './artifacts'
 
 export const getVanityDeployerFactory = (signer?: Signer) => hre.ethers.getContractFactory(
     VanityDeployer.abi,

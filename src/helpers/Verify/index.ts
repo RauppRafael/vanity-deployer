@@ -1,7 +1,7 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ContractTransaction } from 'ethers'
 import hre from 'hardhat'
-import { ERC1967Proxy, VanityDeployer, VanityProxy } from '../artifacts'
+import { ERC1967ProxyArtifact, VanityDeployerArtifact, VanityProxyArtifact } from '../artifacts'
 import { HardhatHelpers } from '../HardhatHelpers'
 import { ConstructorArgument } from '../types'
 import { ContractArtifact, ContractType } from './interfaces'
@@ -65,7 +65,7 @@ export class Verify {
             else if (contractType === ContractType.VanityDeployer) {
                 await Etherscan.requestEtherscanVerification(
                     contractAddress,
-                    VanityDeployer,
+                    VanityDeployerArtifact,
                     '',
                 )
             }
@@ -110,9 +110,9 @@ export class Verify {
         let artifact: ContractArtifact | undefined
 
         if (contractType === ContractType.ERC1967Proxy)
-            artifact = ERC1967Proxy
+            artifact = ERC1967ProxyArtifact
         else if (contractType === ContractType.VanityProxy)
-            artifact = VanityProxy
+            artifact = VanityProxyArtifact
 
         if (!artifact)
             throw new Error('Contract type is not a valid proxy')

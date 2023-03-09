@@ -12,7 +12,7 @@ import {
 import { EtherscanConfig } from '@nomiclabs/hardhat-etherscan/dist/src/types'
 import hre from 'hardhat'
 import { request } from 'undici'
-import { BuildInfo } from '../../artifacts'
+import { BuildInfoArtifact } from '../../artifacts'
 import { sleep } from '../../sleep'
 import { ContractArtifact } from '../interfaces'
 import { EtherscanAPIConfig, EtherscanResponseBody, RESPONSE_OK } from './interfaces'
@@ -27,10 +27,10 @@ export class Etherscan {
         const request = toVerifyRequest({
             apiKey: etherscanApi.key,
             contractAddress,
-            sourceCode: JSON.stringify(BuildInfo.input),
+            sourceCode: JSON.stringify(BuildInfoArtifact.input),
             sourceName: artifact.sourceName,
             contractName: artifact.contractName,
-            compilerVersion: `v${ BuildInfo.solcLongVersion }`,
+            compilerVersion: `v${ BuildInfoArtifact.solcLongVersion }`,
             constructorArguments: constructorArguments,
         })
 

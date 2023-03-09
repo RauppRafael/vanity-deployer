@@ -1,5 +1,5 @@
 {
-    "name": "@ryze-blockchain/vanity-deployer",
+    "name": "hardhat-vanity",
     "version": "0.0.1",
     "description": "",
     "main": "index.ts",

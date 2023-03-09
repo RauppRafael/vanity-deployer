@@ -6,7 +6,7 @@ const getVersionBase = (version: string) => ({
     settings: {
         optimizer: {
             enabled: true,
-            runs: 2_400,
+            runs: 2_000,
         },
     },
 })

@@ -1,7 +1,7 @@
 import { Contract, Wallet } from 'ethers'
 import hre from 'hardhat'
 import { CommandBuilder } from './CommandBuilder'
-import { getERC1967ProxyFactory } from './factories'
+import { getERC1967ProxyFactory, getVanityDeployerFactory } from './factories'
 import { HardhatHelpers } from './HardhatHelpers'
 import { Matcher } from './Matcher'
 import { storage, StorageType } from './Storage'
@@ -88,10 +88,7 @@ export class DeployerInitializer {
                 )
             }
             else {
-                const factory = await hre.ethers.getContractFactory(
-                    'VanityDeployer',
-                    contractDeployer,
-                )
+                const factory = await getVanityDeployerFactory(contractDeployer)
 
                 deployerContract = await factory.deploy(
                     { gasPrice: await HardhatHelpers.gasPrice() },

@@ -1,9 +1,9 @@
-import { TransactionResponse } from '@ethersproject/abstract-provider'
 import hre from 'hardhat'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { BigNumber, Wallet } from 'ethers'
+import { TransactionResponse } from '@ethersproject/abstract-provider'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
-export class HardhatHelpers {
+export class Hardhat {
     static async mainSigner() {
         return (await hre.ethers.getSigners())[0]
     }
@@ -52,7 +52,7 @@ export class HardhatHelpers {
                 to: to.address,
                 gasPrice,
                 gasLimit: 21000,
-                value: (await HardhatHelpers.balanceOf(from))
+                value: (await Hardhat.balanceOf(from))
                     .sub(hre.ethers.BigNumber.from(21000).mul(gasPrice)),
             }),
             2,

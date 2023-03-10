@@ -6,10 +6,10 @@ import {
     UpgradesBuildInfoArtifact,
     VanityDeployerArtifact,
     VanityDeployerBuildInfoArtifact,
-} from '../artifacts'
-import { getERC1967ProxyFactory } from '../factories'
-import { HardhatHelpers } from '../HardhatHelpers'
-import { ConstructorArgument } from '../types'
+} from '../helpers/artifacts'
+import { getERC1967ProxyFactory } from '../helpers/factories'
+import { Hardhat } from '../Hardhat'
+import { ConstructorArgument } from '../helpers/types'
 import { Etherscan } from './Etherscan'
 import { ContractType } from './interfaces'
 
@@ -109,7 +109,7 @@ export class Verify {
     }: IVerify) {
         const provider = hre.network.provider
         const implAddress = await getImplementationAddress(provider, contractAddress)
-        const contractFactory = await getERC1967ProxyFactory(await HardhatHelpers.mainSigner())
+        const contractFactory = await getERC1967ProxyFactory(await Hardhat.mainSigner())
 
         await Etherscan.requestEtherscanVerification(
             contractAddress,

@@ -1,24 +1,24 @@
 import { Contract, Wallet } from 'ethers'
 import hre from 'hardhat'
 import { CommandBuilder } from './CommandBuilder'
-import { getERC1967ProxyFactory, getVanityDeployerFactory } from './factories'
-import { HardhatHelpers } from './HardhatHelpers'
+import { getERC1967ProxyFactory, getVanityDeployerFactory } from './helpers/factories'
+import { Hardhat } from './Hardhat'
 import { Matcher } from './Matcher'
-import { storage, StorageType } from './Storage'
-import { ConstructorArgument } from './types'
+import { Storage, StorageType } from './Storage'
+import { ConstructorArgument } from './helpers/types'
 import { Verify } from './Verify'
 import { ContractType } from './Verify/interfaces'
 
-export class DeployerInitializer {
+export class VanityInitializer {
     constructor(private readonly matcher: Matcher) {
     }
 
     public async initialize(): Promise<void> {
-        const deployerAddress = await storage.find({
+        const deployerAddress = await Storage.find({
             type: StorageType.ADDRESS,
             name: 'Deployer',
         })
-        const deployerProxyAddress = await storage.find({
+        const deployerProxyAddress = await Storage.find({
             type: StorageType.ADDRESS,
             name: 'DeployerProxy',
         })
@@ -51,7 +51,7 @@ export class DeployerInitializer {
         try {
             console.log(`Deploying deployer${ isProxy ? ' proxy' : '' }`)
 
-            let privateKey = await storage.find({
+            let privateKey = await Storage.find({
                 type: StorageType.SECRET,
                 name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
             })
@@ -61,14 +61,14 @@ export class DeployerInitializer {
 
             contractDeployer = this.getSigner(privateKey)
 
-            await HardhatHelpers.transferAllFunds(mainSigner, contractDeployer)
+            await Hardhat.transferAllFunds(mainSigner, contractDeployer)
 
             let deployerContract: Contract | undefined
             let constructorArguments: ConstructorArgument[] = []
 
             if (isProxy) {
                 const factory = await getERC1967ProxyFactory(contractDeployer)
-                const implementationAddress = await storage.find({
+                const implementationAddress = await Storage.find({
                     type: StorageType.ADDRESS,
                     name: 'Deployer',
                 })
@@ -84,27 +84,27 @@ export class DeployerInitializer {
 
                 deployerContract = await factory.deploy(
                     ...constructorArguments,
-                    { gasPrice: await HardhatHelpers.gasPrice() },
+                    { gasPrice: await Hardhat.gasPrice() },
                 )
             }
             else {
                 const factory = await getVanityDeployerFactory(contractDeployer)
 
                 deployerContract = await factory.deploy(
-                    { gasPrice: await HardhatHelpers.gasPrice() },
+                    { gasPrice: await Hardhat.gasPrice() },
                 )
             }
 
-            await HardhatHelpers.sendTransaction(deployerContract.deployTransaction)
-            await HardhatHelpers.transferAllFunds(contractDeployer, mainSigner)
+            await Hardhat.sendTransaction(deployerContract.deployTransaction)
+            await Hardhat.transferAllFunds(contractDeployer, mainSigner)
 
-            await storage.save({
+            await Storage.save({
                 type: StorageType.ADDRESS,
                 name: isProxy ? 'DeployerProxy' : 'Deployer',
                 value: deployerContract.address,
             })
 
-            await storage.save({
+            await Storage.save({
                 type: StorageType.SECRET,
                 name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
                 value: privateKey,
@@ -124,7 +124,7 @@ export class DeployerInitializer {
             console.log('Error: returning funds to main signer')
 
             if (contractDeployer)
-                await HardhatHelpers.transferAllFunds(contractDeployer, mainSigner)
+                await Hardhat.transferAllFunds(contractDeployer, mainSigner)
 
             throw error
         }

@@ -12,9 +12,9 @@ import {
 import { EtherscanConfig } from '@nomiclabs/hardhat-etherscan/dist/src/types'
 import hre from 'hardhat'
 import { request } from 'undici'
-import { BuildInfo } from '../../artifacts'
-import { sleep } from '../../sleep'
-import { ContractArtifact } from '../interfaces'
+import { BuildInfo } from '../helpers/artifacts'
+import { sleep } from '../helpers/sleep'
+import { ContractArtifact } from './interfaces'
 import { EtherscanAPIConfig, EtherscanResponseBody, RESPONSE_OK } from './interfaces'
 
 export class Etherscan {

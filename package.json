@@ -6,9 +6,9 @@
     "scripts": {
         "deploy": "tsc && npm version patch && npm publish --access public",
         "lint": "eslint . --ext=.ts",
-        "lint:fix": "eslint . --ext=.ts --fix"
+        "lint:fix": "npm run lint -- --fix"
     },
-    "author": "",
+    "author": "Rafael Raupp <raupperino@gmail.com>",
     "license": "UNLICENSED",
     "dependencies": {
         "@openzeppelin/contracts": "4.8.2",

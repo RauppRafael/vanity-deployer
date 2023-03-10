@@ -12,7 +12,7 @@ import {
 import { EtherscanConfig } from '@nomiclabs/hardhat-etherscan/dist/src/types'
 import hre from 'hardhat'
 import { request } from 'undici'
-import artifactsBuildInfo from '@openzeppelin/upgrades-core/artifacts/build-info.json'
+import { BuildInfo } from '../../artifacts'
 import { sleep } from '../../sleep'
 import { ContractArtifact } from '../interfaces'
 import { EtherscanAPIConfig, EtherscanResponseBody, RESPONSE_OK } from './interfaces'
@@ -20,17 +20,18 @@ import { EtherscanAPIConfig, EtherscanResponseBody, RESPONSE_OK } from './interf
 export class Etherscan {
     public static async requestEtherscanVerification(
         contractAddress: string,
-        artifact: ContractArtifact,
         constructorArguments: string,
+        artifact: ContractArtifact,
+        buildInfo: BuildInfo,
     ) {
         const etherscanApi = await Etherscan._getEtherscanAPIConfig()
         const request = toVerifyRequest({
             apiKey: etherscanApi.key,
             contractAddress,
-            sourceCode: JSON.stringify(artifactsBuildInfo.input),
+            sourceCode: JSON.stringify(buildInfo.input),
             sourceName: artifact.sourceName,
             contractName: artifact.contractName,
-            compilerVersion: `v${ artifactsBuildInfo.solcLongVersion }`,
+            compilerVersion: `v${ buildInfo.solcLongVersion }`,
             constructorArguments: constructorArguments,
         })
 

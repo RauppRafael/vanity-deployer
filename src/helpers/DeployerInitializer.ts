@@ -7,6 +7,7 @@ import { Matcher } from './Matcher'
 import { storage, StorageType } from './Storage'
 import { ConstructorArgument } from './types'
 import { Verify } from './Verify'
+import { ContractType } from './Verify/interfaces'
 
 export class DeployerInitializer {
     constructor(private readonly matcher: Matcher) {
@@ -67,9 +68,16 @@ export class DeployerInitializer {
 
             if (isProxy) {
                 const factory = await getERC1967ProxyFactory(contractDeployer)
+                const implementationAddress = await storage.find({
+                    type: StorageType.ADDRESS,
+                    name: 'Deployer',
+                })
+
+                if (!implementationAddress)
+                    throw new Error('Deploying proxy but implementation is not found')
 
                 constructorArguments = [
-                    (await storage.find({ type: StorageType.ADDRESS, name: 'Deployer' }))!,
+                    implementationAddress,
                     (new hre.ethers.utils.Interface(['function initialize(address) external']))
                         .encodeFunctionData('initialize', [(await hre.ethers.getSigners())[0].address]),
                 ]
@@ -91,7 +99,6 @@ export class DeployerInitializer {
             }
 
             await HardhatHelpers.sendTransaction(deployerContract.deployTransaction)
-
             await HardhatHelpers.transferAllFunds(contractDeployer, mainSigner)
 
             await storage.save({
@@ -107,9 +114,9 @@ export class DeployerInitializer {
             })
 
             Verify.add({
+                contractType: isProxy ? ContractType.Proxy : ContractType.VanityDeployer,
                 contractAddress: deployerContract.address,
                 deployTransaction: deployerContract.deployTransaction,
-                isProxy,
                 constructorArguments,
             })
 

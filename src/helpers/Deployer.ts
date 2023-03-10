@@ -1,6 +1,6 @@
 import { Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
 import hre from 'hardhat'
-import { VanityDeployer__factory, } from '../../types'
+import { VanityDeployer__factory } from '../../types'
 import { initializeExecutables } from '../scripts/initialize-executables'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
@@ -11,6 +11,7 @@ import { Matcher } from './Matcher'
 import { storage, StorageType } from './Storage'
 import { ConstructorArgument } from './types'
 import { Verify } from './Verify'
+import { ContractType } from './Verify/interfaces'
 
 export class Deployer {
     private readonly matcher: Matcher
@@ -42,11 +43,7 @@ export class Deployer {
 
         await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contractAddress })
 
-        Verify.add({
-            contractAddress,
-            deployTransaction,
-            isProxy: false,
-        })
+        Verify.add({ contractAddress, deployTransaction })
 
         return (await hre.ethers.getContractFactory(
             name,
@@ -123,9 +120,9 @@ export class Deployer {
         })
 
         Verify.add({
+            contractType: ContractType.Proxy,
             contractAddress: proxyAddress,
             deployTransaction,
-            isProxy: true,
             constructorArguments,
         })
 
@@ -151,7 +148,6 @@ export class Deployer {
         Verify.add({
             contractAddress: contract.address,
             deployTransaction: contract.deployTransaction,
-            isProxy: false,
             constructorArguments,
         })
 
@@ -222,11 +218,7 @@ export class Deployer {
     ) {
         await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: address })
 
-        Verify.add({
-            contractAddress: address,
-            deployTransaction,
-            isProxy: false,
-        })
+        Verify.add({ contractAddress: address, deployTransaction })
 
         console.log(`Deployed ${ saveAs }`)
 

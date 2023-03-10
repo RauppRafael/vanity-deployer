@@ -7,3 +7,9 @@ export interface ContractArtifact {
     abi: any
     bytecode: any
 }
+
+export enum ContractType {
+    VanityDeployer,
+    Proxy,
+    Default,
+}

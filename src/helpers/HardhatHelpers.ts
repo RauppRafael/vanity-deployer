@@ -26,8 +26,7 @@ export class HardhatHelpers {
     ) {
         const awaitedTransaction = await transaction
 
-        // TODO check another way to validate network that doesn't involve process.env
-        const network = process?.env?.HARDHAT_NETWORK
+        const network = hre.network.name
 
         if (network !== 'hardhat' && network !== 'localhost')
             await awaitedTransaction.wait(wait)

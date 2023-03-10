@@ -13,7 +13,6 @@
     "dependencies": {
         "@openzeppelin/contracts": "4.8.2",
         "@openzeppelin/contracts-upgradeable": "4.8.2",
-        "@openzeppelin/hardhat-upgrades": "1.22.1",
         "@openzeppelin/upgrades-core": "1.24.1",
         "@typechain/ethers-v5": "^10.1.0",
         "@typechain/hardhat": "^6.1.5",

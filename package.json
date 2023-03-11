@@ -1,6 +1,6 @@
 {
     "name": "hardhat-vanity",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Deploy ethereum smart contracts with a vanity address",
     "main": "index.ts",
     "scripts": {

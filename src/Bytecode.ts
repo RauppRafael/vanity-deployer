@@ -1,7 +1,7 @@
-import { ConstructorArgument } from './types'
+import { ConstructorArgument } from './helpers/types'
 import hre from 'hardhat'
 import { ContractFactory } from 'ethers'
-import { storage, StorageType } from './Storage'
+import { Storage, StorageType } from './Storage'
 
 export class Bytecode {
     public static async generate(
@@ -23,7 +23,7 @@ export class Bytecode {
             ? factory.bytecode + factory.interface.encodeDeploy(constructorArguments).replace('0x', '')
             : factory.bytecode
 
-        const filename = await storage.save({
+        const filename = await Storage.save({
             type: StorageType.BYTECODE,
             name: saveAs || name,
             value: bytecode,
@@ -32,9 +32,6 @@ export class Bytecode {
         if (!filename)
             throw new Error('Filename cannot be undefined')
 
-        return {
-            filename,
-            bytecode,
-        }
+        return { filename, bytecode }
     }
 }

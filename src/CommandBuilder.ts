@@ -4,7 +4,7 @@ import { Matcher, MatcherType } from './Matcher'
 import { exec } from 'child_process'
 import internal from 'stream'
 import kill from 'tree-kill'
-import { sleep } from './sleep'
+import { sleep } from './helpers/sleep'
 
 export class CommandBuilder {
     private static MIN_DURATION = 3_500
@@ -91,7 +91,7 @@ export class CommandBuilder {
     private static _getExecutable(name: string) {
         return path.join(
             __dirname,
-            '../executables',
+            './executables',
             process.platform === 'linux'
                 ? `${ name }.x64`
                 : name,

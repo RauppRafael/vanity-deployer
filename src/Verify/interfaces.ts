@@ -1,6 +1,22 @@
 import { EtherscanNetworkEntry } from '@nomiclabs/hardhat-etherscan/dist/src/types'
 
 /**
+ * Hardhat artifact for a precompiled contract
+ */
+export interface ContractArtifact {
+    contractName: string
+    sourceName: string
+    abi: any
+    bytecode: any
+}
+
+export enum ContractType {
+    VanityDeployer,
+    Proxy,
+    Default,
+}
+
+/**
  * The Etherscan API parameters from the Hardhat config.
  */
 export interface EtherscanAPIConfig {

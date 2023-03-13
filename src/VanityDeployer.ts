@@ -1,15 +1,15 @@
 import { Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
 import hre from 'hardhat'
 import { VanityDeployer__factory } from '../types'
-import { initializeExecutables } from './scripts/initialize-executables'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
-import { VanityInitializer } from './VanityInitializer'
-import { getERC1967ProxyFactory } from './helpers/factories'
 import { Hardhat } from './Hardhat'
-import { Matcher } from './Matcher'
-import { Storage, StorageType } from './Storage'
+import { getERC1967ProxyFactory } from './helpers/factories'
 import { ConstructorArgument } from './helpers/types'
+import { Matcher } from './Matcher'
+import { initializeExecutables } from './scripts/initialize-executables'
+import { Storage, StorageType } from './Storage'
+import { VanityInitializer } from './VanityInitializer'
 import { Verify } from './Verify'
 import { ContractType } from './Verify/interfaces'
 
@@ -39,16 +39,14 @@ export class VanityDeployer {
         const deployTransaction = await Hardhat.sendTransaction(
             deployer.deployContract(bytecode, salt, overrides),
         )
-        const contractAddress = await deployer.getAddress(bytecode, salt)
 
-        await Storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contractAddress })
-
-        Verify.add({ contractAddress, deployTransaction })
-
-        return (await hre.ethers.getContractFactory(
+        return this._verifyAndStoreAddress<T>(
+            ContractType.Default,
+            await deployer.getAddress(bytecode, salt),
             name,
-            await Hardhat.mainSigner(),
-        )).attach(contractAddress) as T
+            saveAs,
+            deployTransaction
+        )
     }
 
     public async deployAndInitialize<T extends Contract>(
@@ -68,12 +66,13 @@ export class VanityDeployer {
             factory.interface.encodeFunctionData('initialize', initializerArguments),
         )
 
-        return await this._verifyAndStoreAddress(
+        return await this._verifyAndStoreAddress<T>(
+            ContractType.Default,
+            await deployer.getAddress(bytecode, salt),
             name,
             saveAs,
-            await deployer.getAddress(bytecode, salt),
             deployTransaction,
-        ) as T
+        )
     }
 
     public async deployProxy<T extends Contract>(
@@ -95,10 +94,11 @@ export class VanityDeployer {
 
         const signer = await Hardhat.mainSigner()
         const constructorArguments = [implementation.address, []]
+        const proxySaveAs = `${ saveAs }Proxy`
 
         const { deployer, salt, bytecode } = await this._getContractInfo(
             'ERC1967Proxy',
-            `${ saveAs }Proxy`,
+            proxySaveAs,
             constructorArguments,
             await getERC1967ProxyFactory(signer),
         )
@@ -109,24 +109,15 @@ export class VanityDeployer {
             implementation.interface.encodeFunctionData('initialize', initializerArguments),
         )
 
-        await Hardhat.sendTransaction(deployTransaction)
-
         const proxyAddress = await deployer.getAddress(bytecode, salt)
 
-        await Storage.save({
-            type: StorageType.ADDRESS,
-            name: saveAs + 'Proxy',
-            value: proxyAddress,
-        })
-
-        Verify.add({
-            contractType: ContractType.Proxy,
-            contractAddress: proxyAddress,
-            deployTransaction,
-            constructorArguments,
-        })
-
-        console.log(`Deployed ${ saveAs + 'Proxy' }`)
+        await this._verifyAndStoreAddress(
+            ContractType.Proxy,
+            proxyAddress,
+            name,
+            proxySaveAs,
+            deployTransaction
+        )
 
         return implementation.attach(proxyAddress) as T
     }
@@ -141,17 +132,15 @@ export class VanityDeployer {
                 name,
                 await Hardhat.mainSigner(),
             )
-        ).deploy(...constructorArguments) as T
+        ).deploy(...constructorArguments)
 
-        await Storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contract.address })
-
-        Verify.add({
-            contractAddress: contract.address,
-            deployTransaction: contract.deployTransaction,
-            constructorArguments,
-        })
-
-        return contract
+        return this._verifyAndStoreAddress<T>(
+            ContractType.Default,
+            contract.address,
+            name,
+            saveAs,
+            contract.deployTransaction,
+        )
     }
 
     private async _getContractInfo(
@@ -210,24 +199,25 @@ export class VanityDeployer {
         return salt
     }
 
-    private async _verifyAndStoreAddress(
+    private async _verifyAndStoreAddress<T extends Contract>(
+        contractType: ContractType,
+        contractAddress: string,
         name: string,
         saveAs: string,
-        address: string,
         deployTransaction: ContractTransaction,
     ) {
-        await Storage.save({ type: StorageType.ADDRESS, name: saveAs, value: address })
+        await Storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contractAddress })
 
-        Verify.add({ contractAddress: address, deployTransaction })
+        Verify.add({ contractType, contractAddress, deployTransaction })
 
         console.log(`Deployed ${ saveAs }`)
 
-        await deployTransaction.wait(1)
+        await Hardhat.sendTransaction(deployTransaction)
 
         return (await hre.ethers.getContractFactory(
             name,
             await Hardhat.mainSigner(),
-        )).attach(address)
+        )).attach(contractAddress) as T
     }
 
     private async initialize() {

@@ -45,7 +45,7 @@ export class VanityDeployer {
             await deployer.getAddress(bytecode, salt),
             name,
             saveAs,
-            deployTransaction
+            deployTransaction,
         )
     }
 
@@ -53,6 +53,7 @@ export class VanityDeployer {
         name: string,
         initializerArguments: ConstructorArgument[],
         saveAs: string = name,
+        overrides: Overrides = {},
     ): Promise<T> {
         console.log(`Deploying ${ saveAs }`)
 
@@ -64,6 +65,7 @@ export class VanityDeployer {
             bytecode,
             salt,
             factory.interface.encodeFunctionData('initialize', initializerArguments),
+            overrides,
         )
 
         return await this._verifyAndStoreAddress<T>(
@@ -85,12 +87,13 @@ export class VanityDeployer {
             saveAs?: string,
             implementation?: Contract
         } = {},
+        overrides: Overrides = {},
     ): Promise<T> {
         if (!saveAs)
             saveAs = name
 
         if (!implementation)
-            implementation = await this.deploy(name, saveAs)
+            implementation = await this.deploy(name, saveAs, overrides)
 
         const signer = await Hardhat.mainSigner()
         const constructorArguments = [implementation.address, []]
@@ -107,6 +110,7 @@ export class VanityDeployer {
             bytecode,
             salt,
             implementation.interface.encodeFunctionData('initialize', initializerArguments),
+            overrides,
         )
 
         const proxyAddress = await deployer.getAddress(bytecode, salt)
@@ -116,7 +120,7 @@ export class VanityDeployer {
             proxyAddress,
             name,
             proxySaveAs,
-            deployTransaction
+            deployTransaction,
         )
 
         return implementation.attach(proxyAddress) as T
@@ -126,13 +130,14 @@ export class VanityDeployer {
         name: string,
         constructorArguments: ConstructorArgument[],
         saveAs: string = name,
+        overrides: Overrides = {},
     ): Promise<T> {
         const contract = await (
             await hre.ethers.getContractFactory(
                 name,
                 await Hardhat.mainSigner(),
             )
-        ).deploy(...constructorArguments)
+        ).deploy(...constructorArguments, overrides)
 
         return this._verifyAndStoreAddress<T>(
             ContractType.Default,

@@ -14,14 +14,8 @@ export class VanityInitializer {
     }
 
     public async initialize(): Promise<void> {
-        const deployerAddress = await Storage.find({
-            type: StorageType.ADDRESS,
-            name: 'Deployer',
-        })
-        const deployerProxyAddress = await Storage.find({
-            type: StorageType.ADDRESS,
-            name: 'DeployerProxy',
-        })
+        const deployerAddress = await Storage.findAddress('Deployer')
+        const deployerProxyAddress = await Storage.findAddress('DeployerProxy')
 
         if (!deployerAddress) {
             await this.deploy(false)
@@ -45,33 +39,21 @@ export class VanityInitializer {
     }
 
     private async deploy(isProxy: boolean): Promise<void> {
-        const mainSigner = (await hre.ethers.getSigners())[0]
-        let contractDeployer: Wallet | undefined
+        console.log(`Deploying deployer${ isProxy ? ' proxy' : '' }`)
+
+        const mainSigner = await Hardhat.mainSigner()
+        const contractDeployer = await this.getContractDeployer(isProxy)
 
         try {
-            console.log(`Deploying deployer${ isProxy ? ' proxy' : '' }`)
-
-            let privateKey = await Storage.find({
-                type: StorageType.SECRET,
-                name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
-            })
-
-            if (!privateKey)
-                privateKey = await CommandBuilder.profanity(this.matcher)
-
-            contractDeployer = this.getSigner(privateKey)
-
             await Hardhat.transferAllFunds(mainSigner, contractDeployer)
+
+            const factory = await this.getDeployerFactory(contractDeployer, isProxy)
 
             let deployerContract: Contract | undefined
             let constructorArguments: ConstructorArgument[] = []
 
             if (isProxy) {
-                const factory = await getERC1967ProxyFactory(contractDeployer)
-                const implementationAddress = await Storage.find({
-                    type: StorageType.ADDRESS,
-                    name: 'Deployer',
-                })
+                const implementationAddress = await Storage.findAddress('Deployer')
 
                 if (!implementationAddress)
                     throw new Error('Deploying proxy but implementation is not found')
@@ -79,7 +61,7 @@ export class VanityInitializer {
                 constructorArguments = [
                     implementationAddress,
                     (new hre.ethers.utils.Interface(['function initialize(address) external']))
-                        .encodeFunctionData('initialize', [(await hre.ethers.getSigners())[0].address]),
+                        .encodeFunctionData('initialize', [mainSigner.address]),
                 ]
 
                 deployerContract = await factory.deploy(
@@ -88,8 +70,6 @@ export class VanityInitializer {
                 )
             }
             else {
-                const factory = await getVanityDeployerFactory(contractDeployer)
-
                 deployerContract = await factory.deploy(
                     { gasPrice: await Hardhat.gasPrice() },
                 )
@@ -102,12 +82,6 @@ export class VanityInitializer {
                 type: StorageType.ADDRESS,
                 name: isProxy ? 'DeployerProxy' : 'Deployer',
                 value: deployerContract.address,
-            })
-
-            await Storage.save({
-                type: StorageType.SECRET,
-                name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
-                value: privateKey,
             })
 
             Verify.add({
@@ -130,7 +104,28 @@ export class VanityInitializer {
         }
     }
 
-    private getSigner(pk: string) {
-        return new hre.ethers.Wallet(pk, hre.ethers.provider)
+    private async getContractDeployer(isProxy: boolean) {
+        let privateKey = await Storage.find({
+            type: StorageType.SECRET,
+            name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
+        })
+
+        if (!privateKey) {
+            privateKey = await CommandBuilder.profanity(this.matcher)
+
+            await Storage.save({
+                type: StorageType.SECRET,
+                name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
+                value: privateKey,
+            })
+        }
+
+        return new hre.ethers.Wallet(privateKey, hre.ethers.provider)
+    }
+
+    private getDeployerFactory(contractDeployer: Wallet, isProxy: boolean) {
+        return isProxy
+            ? getERC1967ProxyFactory(contractDeployer)
+            : getVanityDeployerFactory(contractDeployer)
     }
 }

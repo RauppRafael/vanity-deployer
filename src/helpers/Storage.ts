@@ -17,7 +17,8 @@ class Storage {
 
         try {
             contents = await fs.readFile(type)
-        } catch (e) {
+        }
+        catch (e) {
             const error = e as Error
 
             if (error.message.includes(NO_SUCH_FILE))
@@ -66,7 +67,8 @@ class Storage {
     private async _openDirectory(path: string) {
         try {
             await (await fs.opendir(path)).close()
-        } catch (e) {
+        }
+        catch (e) {
             const error = e as Error
 
             if (error.message.includes(NO_SUCH_FILE))

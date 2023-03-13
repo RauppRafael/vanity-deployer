@@ -9,20 +9,31 @@ export class Bytecode {
         {
             saveAs,
             constructorArguments,
+            factory,
         }: {
-            constructorArguments?: ConstructorArgument[]
             saveAs?: string
-        } = {
-            saveAs: name,
-        },
+            constructorArguments?: ConstructorArgument[]
+            factory?: ContractFactory
+        } = {},
     ) {
-        const factory = await hre.ethers.getContractFactory(name) as ContractFactory
+        if (!factory)
+            factory = await hre.ethers.getContractFactory(name)
+
         const bytecode = constructorArguments?.length
             ? factory.bytecode + factory.interface.encodeDeploy(constructorArguments).replace('0x', '')
             : factory.bytecode
 
+        const filename = await storage.save({
+            type: StorageType.BYTECODE,
+            name: saveAs || name,
+            value: bytecode,
+        })
+
+        if (!filename)
+            throw new Error('Filename cannot be undefined')
+
         return {
-            filename: await storage.save({ type: StorageType.BYTECODE, name: saveAs, value: bytecode }),
+            filename,
             bytecode,
         }
     }

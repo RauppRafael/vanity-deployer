@@ -1,48 +1,31 @@
+import { Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
 import hre from 'hardhat'
-import { Verify } from './Verify'
-import { HardhatHelpers } from './HardhatHelpers'
-import { constants, Contract, ContractTransaction, Overrides } from 'ethers'
-import { storage, StorageType } from './Storage'
-import {
-    Deployer__factory,
-    GnosisSafe,
-    GnosisSafe__factory,
-    GnosisSafeProxyFactory__factory,
-} from '../contract-types'
-import { Matcher } from './Matcher'
-import { ConstructorArgument } from './types'
-import { DeployerInitializer } from './DeployerInitializer'
+import { VanityDeployer__factory } from '../../types'
 import { initializeExecutables } from '../scripts/initialize-executables'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
-import { calculateGnosisProxyAddress } from './gnosis'
+import { DeployerInitializer } from './DeployerInitializer'
+import { getERC1967ProxyFactory } from './factories'
+import { HardhatHelpers } from './HardhatHelpers'
+import { Matcher } from './Matcher'
+import { storage, StorageType } from './Storage'
+import { ConstructorArgument } from './types'
+import { Verify } from './Verify'
+import { ContractType } from './Verify/interfaces'
 
 export class Deployer {
     private readonly matcher: Matcher
     private readonly deployerInitializer: DeployerInitializer
-    private readonly proxyContract: string
-    private readonly DEFAULT_PROXY_CONTRACT = 'ERC1967Proxy'
-    private readonly DEFAULT_VANITY_PROXY_CONTRACT = 'VanityProxy'
 
     public constructor({
         startsWith,
         endsWith,
-        proxyContract,
-        proxyInitializableContract,
     }: {
         startsWith?: string
         endsWith?: string
-        proxyContract?: string
-        proxyInitializableContract?: string
     }) {
         this.matcher = new Matcher(startsWith || '', endsWith || '')
-
-        this.deployerInitializer = new DeployerInitializer(
-            this.matcher,
-            proxyInitializableContract || this.DEFAULT_PROXY_CONTRACT,
-        )
-
-        this.proxyContract = proxyContract || this.DEFAULT_VANITY_PROXY_CONTRACT
+        this.deployerInitializer = new DeployerInitializer(this.matcher)
     }
 
     public async deploy<T extends Contract>(
@@ -53,16 +36,19 @@ export class Deployer {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
-        const deployTransaction = await deployer.deployContract(bytecode, salt, overrides)
+        const deployTransaction = await HardhatHelpers.sendTransaction(
+            deployer.deployContract(bytecode, salt, overrides),
+        )
+        const contractAddress = await deployer.getAddress(bytecode, salt)
 
-        await deployTransaction.wait(1)
+        await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contractAddress })
 
-        return await this._verifyAndStoreAddress(
+        Verify.add({ contractAddress, deployTransaction })
+
+        return (await hre.ethers.getContractFactory(
             name,
-            saveAs,
-            await deployer.getAddress(bytecode, salt),
-            deployTransaction,
-        ) as T
+            await HardhatHelpers.mainSigner(),
+        )).attach(contractAddress) as T
     }
 
     public async deployAndInitialize<T extends Contract>(
@@ -107,10 +93,14 @@ export class Deployer {
         if (!implementation)
             implementation = await this.deploy(name, saveAs)
 
+        const signer = (await hre.ethers.getSigners())[0]
+        const constructorArguments = [implementation.address, []]
+
         const { deployer, salt, bytecode } = await this._getContractInfo(
-            this.proxyContract,
+            'ERC1967Proxy',
             `${ saveAs }Proxy`,
-            [implementation.address],
+            constructorArguments,
+            await getERC1967ProxyFactory(signer),
         )
 
         const deployTransaction = await deployer.deployContractAndInitialize(
@@ -119,7 +109,7 @@ export class Deployer {
             implementation.interface.encodeFunctionData('initialize', initializerArguments),
         )
 
-        await deployTransaction.wait(1)
+        await HardhatHelpers.sendTransaction(deployTransaction)
 
         const proxyAddress = await deployer.getAddress(bytecode, salt)
 
@@ -130,65 +120,15 @@ export class Deployer {
         })
 
         Verify.add({
-            address: proxyAddress,
+            contractType: ContractType.Proxy,
+            contractAddress: proxyAddress,
             deployTransaction,
-            constructorArguments: [implementation.address],
+            constructorArguments,
         })
 
         console.log(`Deployed ${ saveAs + 'Proxy' }`)
 
         return implementation.attach(proxyAddress) as T
-    }
-
-    public async deployGnosisSafeProxy(
-        owners: string[],
-        threshold: number,
-        salt: string,
-    ): Promise<GnosisSafe> {
-        const signer = await HardhatHelpers.mainSigner()
-        const safeSingleton = GnosisSafe__factory.connect(
-            '0xd9Db270c1B5E3Bd161E8c8503c55cEABeE709552',
-            signer,
-        )
-        const factory = await GnosisSafeProxyFactory__factory.connect(
-            '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2',
-            signer,
-        )
-        const initializer = safeSingleton.interface.encodeFunctionData(
-            'setup',
-            [
-                owners,
-                threshold,
-                constants.AddressZero,
-                constants.HashZero,
-                constants.AddressZero,
-                constants.AddressZero,
-                0,
-                constants.AddressZero,
-            ],
-        )
-
-        await (
-            await factory.createProxyWithNonce(
-                safeSingleton.address,
-                initializer,
-                salt,
-            )
-        ).wait(1)
-
-        const proxy = GnosisSafe__factory.connect(
-            await calculateGnosisProxyAddress(
-                factory,
-                safeSingleton.address,
-                initializer,
-                salt,
-            ),
-            signer,
-        )
-
-        await storage.save({ type: StorageType.ADDRESS, name: 'GnosisSafe', value: proxy.address })
-
-        return proxy
     }
 
     public async deployWithoutVanity<T extends Contract>(
@@ -206,7 +146,7 @@ export class Deployer {
         await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contract.address })
 
         Verify.add({
-            address: contract.address,
+            contractAddress: contract.address,
             deployTransaction: contract.deployTransaction,
             constructorArguments,
         })
@@ -218,28 +158,39 @@ export class Deployer {
         name: string,
         saveAs: string,
         constructorArguments: ConstructorArgument[],
+        factory?: ContractFactory,
     ) {
         await this.initialize()
 
         const deployer = await this._getContract()
-        const salt = await this._getSalt(name, saveAs, deployer.address, constructorArguments)
-        const { bytecode } = await Bytecode.generate(name, { constructorArguments })
+        const { bytecode, filename } = await Bytecode.generate(name, {
+            constructorArguments,
+            factory,
+        })
+        const salt = await this._getSalt(filename, saveAs, deployer.address)
 
         return { deployer, salt, bytecode }
     }
 
     private async _getContract() {
-        return Deployer__factory.connect(
-            await storage.find({ type: StorageType.ADDRESS, name: 'DeployerProxy' }),
+        const deployerAddress = await storage.find({
+            type: StorageType.ADDRESS,
+            name: 'DeployerProxy',
+        })
+
+        if (!deployerAddress)
+            throw new Error('Deployer address not found')
+
+        return VanityDeployer__factory.connect(
+            deployerAddress,
             await HardhatHelpers.mainSigner(),
         )
     }
 
     private async _getSalt(
-        name: string,
+        bytecodeFilename: string,
         saveAs: string,
         deployerAddress: string,
-        constructorArguments: ConstructorArgument[],
     ) {
         const saltKey = saveAs + ':salt'
 
@@ -250,7 +201,7 @@ export class Deployer {
 
         salt = await CommandBuilder.eradicate(
             deployerAddress,
-            (await Bytecode.generate(name, { constructorArguments, saveAs })).filename,
+            bytecodeFilename,
             this.matcher,
         )
 
@@ -267,7 +218,7 @@ export class Deployer {
     ) {
         await storage.save({ type: StorageType.ADDRESS, name: saveAs, value: address })
 
-        Verify.add({ address: address, deployTransaction })
+        Verify.add({ contractAddress: address, deployTransaction })
 
         console.log(`Deployed ${ saveAs }`)
 

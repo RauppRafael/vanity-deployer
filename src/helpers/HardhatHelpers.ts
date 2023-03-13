@@ -1,6 +1,7 @@
+import { TransactionResponse } from '@ethersproject/abstract-provider'
 import hre from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 
 export class HardhatHelpers {
     static async mainSigner() {
@@ -19,21 +20,28 @@ export class HardhatHelpers {
         )
     }
 
-    static async sendTransaction(tx, wait = 1) {
-        tx = await tx
+    static async sendTransaction(
+        transaction: TransactionResponse | Promise<TransactionResponse>,
+        wait = 1,
+    ) {
+        const awaitedTransaction = await transaction
 
-        const network = process?.env?.HARDHAT_NETWORK
+        const network = hre.network.name
 
         if (network !== 'hardhat' && network !== 'localhost')
-            await tx.wait(wait)
+            await awaitedTransaction.wait(wait)
 
-        return tx
+        return awaitedTransaction
     }
 
     static async gasPrice() {
         const feeData = await hre.ethers.provider.getFeeData()
+        const gasPrice = feeData.gasPrice
 
-        return feeData.gasPrice.add(feeData.gasPrice.mul(10).div(100))
+        if (!gasPrice)
+            return BigNumber.from('0')
+
+        return gasPrice.add(gasPrice.mul(10).div(100))
     }
 
     static async transferAllFunds(from: SignerWithAddress | Wallet, to: SignerWithAddress | Wallet) {

@@ -72,8 +72,12 @@ export class CommandBuilder {
                 }
             })
 
+            child.stderr?.on('data', data => {
+                console.error('error:', data)
+            })
+
             child.on('error', err => {
-                console.error('error', err)
+                console.error('error:', err)
 
                 reject(err)
             })

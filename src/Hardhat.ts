@@ -20,7 +20,7 @@ export class Hardhat {
         )
     }
 
-    static async sendTransaction(
+    static async awaitConfirmation(
         transaction: TransactionResponse | Promise<TransactionResponse>,
         wait = 1,
     ) {
@@ -47,7 +47,7 @@ export class Hardhat {
     static async transferAllFunds(from: SignerWithAddress | Wallet, to: SignerWithAddress | Wallet) {
         const gasPrice = await this.gasPrice()
 
-        await this.sendTransaction(
+        await this.awaitConfirmation(
             from.sendTransaction({
                 to: to.address,
                 gasPrice,

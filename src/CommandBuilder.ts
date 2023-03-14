@@ -122,11 +122,8 @@ export class CommandBuilder {
 
                 await fs.copyFile(sourceFile, destinationFile)
 
-                if (!this.isWindows) {
-                    const stats = await fs.stat(sourceFile)
-
-                    await fs.chmod(destinationFile, stats.mode)
-                }
+                if (!this.isWindows)
+                    await fs.chmod(destinationFile, 0o777)
             }))
         }
     }

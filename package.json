@@ -2,7 +2,7 @@
     "name": "hardhat-vanity",
     "version": "0.1.2",
     "description": "Deploy ethereum smart contracts with a vanity address",
-    "main": "index.ts",
+    "main": "dist/index.js",
     "scripts": {
         "deploy": "tsc && npm version patch && npm publish --access public",
         "lint": "eslint . --ext=.ts",

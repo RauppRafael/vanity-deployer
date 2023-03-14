@@ -104,26 +104,35 @@ export class CommandBuilder {
     }
 
     private static async initializeExecutables() {
-        const files = [
+        const clFiles = [
             'keccak.cl',
             'profanity.cl',
             'eradicate2.cl',
         ]
+        const executableFiles = [
+            'eradicate2.x64',
+            'profanity.x64',
+        ]
 
         try {
-            await Promise.all(files.map(
+            await Promise.all(clFiles.map(
                 file => fs.readFile(`./${ file }`),
             ))
         }
         catch (e) {
-            await Promise.all(files.map(async file => {
+            await Promise.all(clFiles.map(async file => {
                 const sourceFile = path.join(this.executablesPath, file)
                 const destinationFile = `./${ file }`
 
                 await fs.copyFile(sourceFile, destinationFile)
+            }))
+        }
 
-                if (!this.isWindows)
-                    await fs.chmod(destinationFile, 0o777)
+        if (!this.isWindows) {
+            await Promise.all(executableFiles.map(async file => {
+                const sourceFile = path.join(this.executablesPath, file)
+
+                await fs.chmod(sourceFile, 0o777)
             }))
         }
     }

@@ -83,8 +83,9 @@ export class CommandBuilder {
             })
 
             child.on('exit', code => {
-                if (code !== 0)
-                    reject(new Error(`Process exited with code ${ code }`))
+                console.log(`Process exited with code ${ code }`)
+                // if (code !== 0)
+                //     reject(new Error(`Process exited with code ${ code }`))
             })
         })
 

@@ -7,6 +7,7 @@ import { Hardhat } from './Hardhat'
 import { getERC1967ProxyFactory } from './helpers/factories'
 import { ConstructorArgument } from './helpers/types'
 import { Matcher } from './Matcher'
+import { initializeExecutables } from './scripts/initialize-executables'
 import { Storage, StorageType } from './Storage'
 import { VanityInitializer } from './VanityInitializer'
 import { Verify } from './Verify'
@@ -233,6 +234,8 @@ export class VanityDeployer {
     }
 
     private async initialize() {
+        await initializeExecutables()
+
         const deployerAddress = await Storage.find({
             type: StorageType.ADDRESS,
             name: 'DeployerProxy',

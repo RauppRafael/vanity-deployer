@@ -9,6 +9,7 @@ import {
 } from '../helpers/artifacts'
 import { getERC1967ProxyFactory } from '../helpers/factories'
 import { Hardhat } from '../Hardhat'
+import { sleep } from '../helpers/sleep'
 import { ConstructorArgument } from '../helpers/types'
 import { Etherscan } from './Etherscan'
 import { ContractType } from './interfaces'
@@ -100,6 +101,9 @@ export class Verify {
             }
 
             throw error
+        }
+        finally {
+            await sleep(5_000)
         }
     }
 

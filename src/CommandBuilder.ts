@@ -70,6 +70,8 @@ export class CommandBuilder {
                 resolve(result[0])
             })
 
+            child.on('error', err => console.error('error', err))
+
             child.on('exit', code => {
                 reject(code)
             })

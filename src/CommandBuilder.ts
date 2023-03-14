@@ -2,7 +2,6 @@ import dayjs, { Dayjs } from 'dayjs'
 import path from 'path'
 import { Matcher, MatcherType } from './Matcher'
 import { exec } from 'child_process'
-import internal from 'stream'
 import kill from 'tree-kill'
 import { sleep } from './helpers/sleep'
 
@@ -39,17 +38,16 @@ export class CommandBuilder {
         const initialTimestamp = dayjs()
         const child = await exec(command)
 
-        let listener: internal.Readable | undefined
-        let matchTimestamp: Dayjs | undefined
-
-        const promise: Promise<string> = new Promise((resolve, reject) => {
-            listener = child.stdout?.on('data', async event => {
+        const result = await new Promise<{
+            result: string,
+            matchTimestamp: Dayjs,
+        }>((resolve, reject) => {
+            const listener = child.stdout?.on('data', async event => {
                 const line: string = event.toString().toLowerCase()
 
-                if (!line.match(addressMatcher))
-                    return
+                if (!line.match(addressMatcher)) return
 
-                matchTimestamp = dayjs()
+                const matchTimestamp = dayjs()
 
                 if (initialTimestamp.add(this.MIN_DURATION, 'ms').isAfter(matchTimestamp)) {
                     const duration = this.MIN_DURATION - matchTimestamp.diff(initialTimestamp)
@@ -59,35 +57,39 @@ export class CommandBuilder {
 
                 listener?.destroy()
 
-                if (child.pid !== undefined)
-                    kill(child.pid, 'SIGTERM')
+                if (child.pid !== undefined) kill(child.pid, 'SIGTERM')
 
                 const result = line.match(secretMatcher)
 
-                if (!result)
-                    throw new Error('Line result is null')
-
-                resolve(result[0])
+                if (result) {
+                    resolve({
+                        result: result[0],
+                        matchTimestamp,
+                    })
+                }
+                else {
+                    reject(new Error('Line result is null'))
+                }
             })
 
-            child.on('error', err => console.error('error', err))
+            child.on('error', err => {
+                console.error('error', err)
+
+                reject(err)
+            })
 
             child.on('exit', code => {
-                reject(code)
+                if (code !== 0)
+                    reject(new Error(`Process exited with code ${ code }`))
             })
         })
 
-        try {
-            console.log(`Found: ${ await promise }`)
-            console.log(`Duration: ${ matchTimestamp?.diff(initialTimestamp, 's', true).toFixed(3) || '-' }s`)
+        console.log(`Found: ${ result.result }`)
+        console.log(`Duration: ${ result.matchTimestamp.diff(initialTimestamp, 's', true).toFixed(3) || '-' }s`)
 
-            child.removeAllListeners()
+        child.removeAllListeners()
 
-            return promise
-        }
-        catch (e) {
-            return this.run(command, matcher)
-        }
+        return result.result
     }
 
     private static _getExecutable(name: string) {

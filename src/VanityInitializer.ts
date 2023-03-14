@@ -64,7 +64,7 @@ export class VanityInitializer {
                 )
             }
 
-            await Hardhat.sendTransaction(deployerContract.deployTransaction)
+            await Hardhat.awaitConfirmation(deployerContract.deployTransaction)
             await Hardhat.transferAllFunds(contractDeployer, mainSigner)
 
             await Storage.save({

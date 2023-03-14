@@ -36,9 +36,7 @@ export class VanityDeployer {
         console.log(`Deploying ${ saveAs }`)
 
         const { deployer, salt, bytecode } = await this._getContractInfo(name, saveAs, [])
-        const deployTransaction = await Hardhat.sendTransaction(
-            deployer.deployContract(bytecode, salt, overrides),
-        )
+        const deployTransaction = await deployer.deployContract(bytecode, salt, overrides)
 
         return this._verifyAndStoreAddress<T>(
             ContractType.Default,
@@ -227,7 +225,7 @@ export class VanityDeployer {
 
         console.log(`Deployed ${ saveAs }`)
 
-        await Hardhat.sendTransaction(deployTransaction)
+        await Hardhat.awaitConfirmation(deployTransaction)
 
         return (await hre.ethers.getContractFactory(
             name,

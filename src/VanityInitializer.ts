@@ -17,23 +17,12 @@ export class VanityInitializer {
         const deployerAddress = await Storage.findAddress('Deployer')
         const deployerProxyAddress = await Storage.findAddress('DeployerProxy')
 
-        if (!deployerAddress) {
+        if (!deployerAddress || !await Hardhat.isContract(deployerAddress))
             await this.deploy(false)
-        }
-        else if (!deployerProxyAddress) {
+        else if (!deployerProxyAddress || !await Hardhat.isContract(deployerProxyAddress))
             await this.deploy(true)
-        }
-        else {
-            const deployedBytecode = await hre.ethers.provider.getCode(deployerAddress)
-            const deployedProxyBytecode = await hre.ethers.provider.getCode(deployerProxyAddress)
-
-            if (deployedBytecode === '0x')
-                await this.deploy(false)
-            else if (deployedProxyBytecode === '0x')
-                await this.deploy(true)
-            else
-                throw new Error('Already deployed')
-        }
+        else
+            throw new Error('Already deployed')
 
         await Verify.execute()
     }

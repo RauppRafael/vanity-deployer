@@ -58,4 +58,10 @@ export class Hardhat {
             2,
         )
     }
+
+    static async isContract(address: string) {
+        const deployedBytecode = await hre.ethers.provider.getCode(address)
+
+        return deployedBytecode !== '0x'
+    }
 }

@@ -43,6 +43,7 @@ export class VanityDeployer {
         return this._verifyAndStoreAddress<T>(
             ContractType.Default,
             await deployer.getAddress(bytecode, salt),
+            [],
             name,
             saveAs,
             deployTransaction,
@@ -71,6 +72,7 @@ export class VanityDeployer {
         return await this._verifyAndStoreAddress<T>(
             ContractType.Default,
             await deployer.getAddress(bytecode, salt),
+            [],
             name,
             saveAs,
             deployTransaction,
@@ -118,6 +120,7 @@ export class VanityDeployer {
         await this._verifyAndStoreAddress(
             ContractType.Proxy,
             proxyAddress,
+            constructorArguments,
             name,
             proxySaveAs,
             deployTransaction,
@@ -142,6 +145,7 @@ export class VanityDeployer {
         return this._verifyAndStoreAddress<T>(
             ContractType.Default,
             contract.address,
+            constructorArguments,
             name,
             saveAs,
             contract.deployTransaction,
@@ -207,13 +211,19 @@ export class VanityDeployer {
     private async _verifyAndStoreAddress<T extends Contract>(
         contractType: ContractType,
         contractAddress: string,
+        constructorArguments: ConstructorArgument[],
         name: string,
         saveAs: string,
         deployTransaction: ContractTransaction,
     ) {
         await Storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contractAddress })
 
-        Verify.add({ contractType, contractAddress, deployTransaction })
+        Verify.add({
+            contractType,
+            contractAddress,
+            constructorArguments,
+            deployTransaction,
+        })
 
         console.log(`Deployed ${ saveAs }`)
 

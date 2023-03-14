@@ -4,6 +4,7 @@ import { Matcher, MatcherType } from './Matcher'
 import { exec } from 'child_process'
 import kill from 'tree-kill'
 import { sleep } from './helpers/sleep'
+import { promises as fs } from 'fs'
 
 export class CommandBuilder {
     private static MIN_DURATION = 3_500
@@ -33,6 +34,8 @@ export class CommandBuilder {
     }
 
     private static async run(command: string, matcher: Matcher): Promise<string> {
+        await this.initializeExecutables()
+
         const addressMatcher = matcher.get(MatcherType.ADDRESS)
         const secretMatcher = matcher.get(MatcherType.SECRET)
         const initialTimestamp = dayjs()
@@ -72,10 +75,6 @@ export class CommandBuilder {
                 }
             })
 
-            child.stderr?.on('data', data => {
-                console.error('error:', data)
-            })
-
             child.on('error', err => {
                 console.error('error:', err)
 
@@ -83,9 +82,8 @@ export class CommandBuilder {
             })
 
             child.on('exit', code => {
-                console.log(`Process exited with code ${ code }`)
-                // if (code !== 0)
-                //     reject(new Error(`Process exited with code ${ code }`))
+                if (code !== 0)
+                    reject(new Error(`Process exited with code ${ code }`))
             })
         })
 
@@ -99,11 +97,33 @@ export class CommandBuilder {
 
     private static _getExecutable(name: string) {
         return path.join(
-            __dirname,
-            './executables',
+            this.executablesPath,
             process.platform === 'linux'
                 ? `${ name }.x64`
                 : name,
         )
+    }
+
+    private static async initializeExecutables() {
+        const files = [
+            'keccak.cl',
+            'profanity.cl',
+            'eradicate2.cl',
+        ]
+
+        try {
+            await Promise.all(files.map(
+                file => fs.readFile(`./${ file }`),
+            ))
+        }
+        catch (e) {
+            await Promise.all(files.map(
+                file => fs.copyFile(path.join(this.executablesPath, file), `./${ file }`),
+            ))
+        }
+    }
+
+    private static get executablesPath() {
+        return path.join(__dirname, './executables')
     }
 }

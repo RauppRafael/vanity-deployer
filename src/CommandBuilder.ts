@@ -5,6 +5,9 @@ import { exec } from 'child_process'
 import internal from 'stream'
 import kill from 'tree-kill'
 import { sleep } from './helpers/sleep'
+import util from 'util'
+
+const execPromise = util.promisify(exec)
 
 export class CommandBuilder {
     private static MIN_DURATION = 3_500
@@ -31,6 +34,33 @@ export class CommandBuilder {
             `"${ executable }" --contract --matching ${ matchingString }`,
             matcher,
         )
+    }
+
+    public static async getPublicKey(privateKey: string): Promise<string> {
+        const cmd = 'openssl ec -inform DER -text -noout -in - 2>nul | tail -6 | head -5 | sed "s/[ :]//g" | tr -d "\\\\n"'
+        const input = `302e0201010420${ privateKey }a00706052b8104000a`
+        const hex = input.match(/.{2}/g)?.join('') ?? ''
+
+        try {
+            const { stdout, stderr } = await execPromise(`echo "${ hex }" | xxd -r -p | ${ cmd }`)
+
+            if (stdout.length === 0) {
+                console.error('openssl error: no output')
+                console.error(`stderr: ${ stderr }`)
+
+                return ''
+            }
+
+            if (stderr)
+                console.error(`stderr: ${ stderr }`)
+
+            return stdout.trim()
+        }
+        catch (error) {
+            console.error(`exec error: ${ error }`)
+
+            return ''
+        }
     }
 
     private static async run(command: string, matcher: Matcher): Promise<string> {
@@ -60,7 +90,7 @@ export class CommandBuilder {
                 listener?.destroy()
 
                 if (child.pid !== undefined)
-                    kill(child.pid, 'SIGTERM')
+                    kill(child.pid, 'SIGKILL')
 
                 const result = line.match(secretMatcher)
 

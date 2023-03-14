@@ -5,6 +5,7 @@ import { exec } from 'child_process'
 import kill from 'tree-kill'
 import { sleep } from './helpers/sleep'
 import { promises as fs } from 'fs'
+import os from 'os'
 
 export class CommandBuilder {
     private static MIN_DURATION = 3_500
@@ -98,9 +99,7 @@ export class CommandBuilder {
     private static _getExecutable(name: string) {
         return path.join(
             this.executablesPath,
-            process.platform === 'linux'
-                ? `${ name }.x64`
-                : name,
+            this.isWindows ? name : `${ name }.x64`,
         )
     }
 
@@ -117,13 +116,26 @@ export class CommandBuilder {
             ))
         }
         catch (e) {
-            await Promise.all(files.map(
-                file => fs.copyFile(path.join(this.executablesPath, file), `./${ file }`),
-            ))
+            await Promise.all(files.map(async file => {
+                const sourceFile = path.join(this.executablesPath, file)
+                const destinationFile = `./${ file }`
+
+                await fs.copyFile(sourceFile, destinationFile)
+
+                if (!this.isWindows) {
+                    const stats = await fs.stat(sourceFile)
+
+                    await fs.chmod(destinationFile, stats.mode)
+                }
+            }))
         }
     }
 
     private static get executablesPath() {
         return path.join(__dirname, './executables')
+    }
+
+    private static get isWindows() {
+        return os.platform() === 'win32'
     }
 }

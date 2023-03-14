@@ -1,6 +1,6 @@
-src/types
+/src/types
+/artifacts
 node_modules
 .idea
 dist
-artifacts
 cache

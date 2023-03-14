@@ -17,7 +17,7 @@ module.exports = {
         sources: './contracts',
     },
     typechain: {
-        outDir: 'types',
+        outDir: 'src/types',
         target: 'ethers-v5',
     },
 }

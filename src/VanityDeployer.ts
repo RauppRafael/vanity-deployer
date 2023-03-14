@@ -1,6 +1,6 @@
 import { Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
 import hre from 'hardhat'
-import { VanityDeployer__factory } from '../types'
+import { VanityDeployer__factory } from './types'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
 import { Hardhat } from './Hardhat'

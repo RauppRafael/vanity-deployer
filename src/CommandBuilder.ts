@@ -2,9 +2,10 @@ import dayjs, { Dayjs } from 'dayjs'
 import path from 'path'
 import { Matcher, MatcherType } from './Matcher'
 import { exec } from 'child_process'
-import internal from 'stream'
 import kill from 'tree-kill'
 import { sleep } from './helpers/sleep'
+import { promises as fs } from 'fs'
+import os from 'os'
 
 export class CommandBuilder {
     private static MIN_DURATION = 3_500
@@ -34,22 +35,23 @@ export class CommandBuilder {
     }
 
     private static async run(command: string, matcher: Matcher): Promise<string> {
+        await this.initializeExecutables()
+
         const addressMatcher = matcher.get(MatcherType.ADDRESS)
         const secretMatcher = matcher.get(MatcherType.SECRET)
         const initialTimestamp = dayjs()
         const child = await exec(command)
 
-        let listener: internal.Readable | undefined
-        let matchTimestamp: Dayjs | undefined
-
-        const promise: Promise<string> = new Promise((resolve, reject) => {
-            listener = child.stdout?.on('data', async event => {
+        const result = await new Promise<{
+            result: string,
+            matchTimestamp: Dayjs,
+        }>((resolve, reject) => {
+            const listener = child.stdout?.on('data', async event => {
                 const line: string = event.toString().toLowerCase()
 
-                if (!line.match(addressMatcher))
-                    return
+                if (!line.match(addressMatcher)) return
 
-                matchTimestamp = dayjs()
+                const matchTimestamp = dayjs()
 
                 if (initialTimestamp.add(this.MIN_DURATION, 'ms').isAfter(matchTimestamp)) {
                     const duration = this.MIN_DURATION - matchTimestamp.diff(initialTimestamp)
@@ -59,42 +61,87 @@ export class CommandBuilder {
 
                 listener?.destroy()
 
-                if (child.pid !== undefined)
-                    kill(child.pid, 'SIGTERM')
+                if (child.pid !== undefined) kill(child.pid, 'SIGTERM')
 
                 const result = line.match(secretMatcher)
 
-                if (!result)
-                    throw new Error('Line result is null')
+                if (result) {
+                    resolve({
+                        result: result[0],
+                        matchTimestamp,
+                    })
+                }
+                else {
+                    reject(new Error('Line result is null'))
+                }
+            })
 
-                resolve(result[0])
+            child.on('error', err => {
+                console.error('error:', err)
+
+                reject(err)
             })
 
             child.on('exit', code => {
-                reject(code)
+                if (code !== 0)
+                    reject(new Error(`Process exited with code ${ code }`))
             })
         })
 
-        try {
-            console.log(`Found: ${ await promise }`)
-            console.log(`Duration: ${ matchTimestamp?.diff(initialTimestamp, 's', true).toFixed(3) || '-' }s`)
+        console.log(`Found: ${ result.result }`)
+        console.log(`Duration: ${ result.matchTimestamp.diff(initialTimestamp, 's', true).toFixed(3) || '-' }s`)
 
-            child.removeAllListeners()
+        child.removeAllListeners()
 
-            return promise
-        }
-        catch (e) {
-            return this.run(command, matcher)
-        }
+        return result.result
     }
 
     private static _getExecutable(name: string) {
         return path.join(
-            __dirname,
-            './executables',
-            process.platform === 'linux'
-                ? `${ name }.x64`
-                : name,
+            this.executablesPath,
+            this.isWindows ? name : `${ name }.x64`,
         )
+    }
+
+    private static async initializeExecutables() {
+        const clFiles = [
+            'keccak.cl',
+            'profanity.cl',
+            'eradicate2.cl',
+        ]
+        const executableFiles = [
+            'eradicate2.x64',
+            'profanity.x64',
+        ]
+
+        try {
+            await Promise.all(clFiles.map(
+                file => fs.readFile(`./${ file }`),
+            ))
+        }
+        catch (e) {
+            await Promise.all(clFiles.map(async file => {
+                const sourceFile = path.join(this.executablesPath, file)
+                const destinationFile = `./${ file }`
+
+                await fs.copyFile(sourceFile, destinationFile)
+            }))
+        }
+
+        if (!this.isWindows) {
+            await Promise.all(executableFiles.map(async file => {
+                const sourceFile = path.join(this.executablesPath, file)
+
+                await fs.chmod(sourceFile, 0o777)
+            }))
+        }
+    }
+
+    private static get executablesPath() {
+        return path.join(__dirname, './executables')
+    }
+
+    private static get isWindows() {
+        return os.platform() === 'win32'
     }
 }

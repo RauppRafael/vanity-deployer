@@ -86,8 +86,13 @@ export class VanityInitializer {
         catch (error) {
             console.log('Error: returning funds to main signer')
 
-            if (contractDeployer)
-                await Hardhat.transferAllFunds(contractDeployer, mainSigner)
+            try {
+                if (contractDeployer)
+                    await Hardhat.transferAllFunds(contractDeployer, mainSigner)
+            }
+            catch (e) {
+                console.error(e)
+            }
 
             throw error
         }

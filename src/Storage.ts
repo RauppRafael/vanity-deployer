@@ -38,7 +38,10 @@ export class Storage {
     public static async find({
         type,
         name,
-    }: { type: StorageType, name: string }): Promise<string | IVerify | undefined> {
+    }: {
+        type: StorageType
+        name: string
+    }): Promise<IVerify | string | undefined> {
         return (await this.all({ type }))?.[name]
     }
 
@@ -48,7 +51,7 @@ export class Storage {
         return typeof address === 'string' ? address : undefined
     }
 
-    public static async findVerify() {
+    public static async findVerify(): Promise<Record<string, IVerify>> {
         const all = await this.all({ type: StorageType.VERIFY })
         const allValues = Object.values(all)
         const allFiltered: Record<string, IVerify> = {}
@@ -63,7 +66,13 @@ export class Storage {
         return allFiltered
     }
 
-    public static async saveAll({ type, data }: { type: StorageType, data: StorageData }) {
+    public static async saveAll({
+        type,
+        data,
+    }: {
+        type: StorageType
+        data: StorageData
+    }): Promise<void> {
         return await fs.writeFile(
             `${ STORAGE }/${ type }`,
             JSON.stringify(data, null, 4),
@@ -74,7 +83,11 @@ export class Storage {
         type,
         name,
         value,
-    }: { type: StorageType, name: string, value: string | IVerify }) {
+    }: {
+        type: StorageType
+        name: string
+        value: string | IVerify
+    }): Promise<string | undefined> {
         const valueIsString = typeof value === 'string'
 
         if (type === StorageType.BYTECODE) {
@@ -100,7 +113,7 @@ export class Storage {
         await this.saveAll({ type, data: all })
     }
 
-    private static async _openDirectory(path: string) {
+    private static async _openDirectory(path: string): Promise<void> {
         try {
             await (await fs.opendir(path)).close()
         }

@@ -35,7 +35,7 @@ export class Storage {
         return JSON.parse(contents.toString())
     }
 
-    public static async find({
+    private static async _find({
         type,
         name,
     }: {
@@ -46,13 +46,13 @@ export class Storage {
     }
 
     public static async findAddress(name: string): Promise<string | undefined> {
-        const address = await this.find({ type: StorageType.ADDRESS, name })
+        const address = await this._find({ type: StorageType.ADDRESS, name })
 
         return typeof address === 'string' ? address : undefined
     }
 
     public static async findSecret(name: string): Promise<string | undefined> {
-        const secret = await this.find({ type: StorageType.SECRET, name })
+        const secret = await this._find({ type: StorageType.SECRET, name })
 
         return typeof secret === 'string' ? secret : undefined
     }

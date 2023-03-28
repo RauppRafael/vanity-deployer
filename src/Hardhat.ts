@@ -46,17 +46,28 @@ export class Hardhat {
 
     static async transferAllFunds(from: SignerWithAddress | Wallet, to: SignerWithAddress | Wallet) {
         const gasPrice = await this.gasPrice()
+        const gasLimit = await hre.ethers.provider.estimateGas({
+            from: from.address,
+            to: to.address,
+            gasPrice: gasPrice,
+        })
+        const gasCost = hre.ethers.BigNumber.from(gasLimit).mul(gasPrice)
+        const value = (await Hardhat.balanceOf(from)).sub(gasCost)
 
-        await this.awaitConfirmation(
-            from.sendTransaction({
-                to: to.address,
-                gasPrice,
-                gasLimit: 21000,
-                value: (await Hardhat.balanceOf(from))
-                    .sub(hre.ethers.BigNumber.from(21000).mul(gasPrice)),
-            }),
-            2,
-        )
+        if (value.gt(0)) {
+            await this.awaitConfirmation(
+                from.sendTransaction({
+                    to: to.address,
+                    gasPrice,
+                    gasLimit,
+                    value,
+                }),
+                2,
+            )
+        }
+        else {
+            console.error('Error when transferring funds | insufficient balance')
+        }
     }
 
     static async isContract(address: string) {

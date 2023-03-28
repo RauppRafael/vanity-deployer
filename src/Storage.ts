@@ -11,10 +11,8 @@ export enum StorageType {
     BYTECODE = 'bytecode',
 }
 
-type StorageData = Record<string, string | IVerify>
-
 export class Storage {
-    public static async all({ type }: { type: StorageType }): Promise<StorageData> {
+    public static async all({ type }: { type: StorageType }): Promise<Record<string, string>> {
         let contents
 
         await this._openDirectory(STORAGE)
@@ -41,7 +39,7 @@ export class Storage {
     }: {
         type: StorageType
         name: string
-    }): Promise<IVerify | string | undefined> {
+    }): Promise<string | undefined> {
         return (await this.all({ type }))?.[name]
     }
 
@@ -63,10 +61,16 @@ export class Storage {
         const allFiltered: Record<string, IVerify> = {}
 
         for (const item of allValues) {
-            if (typeof item === 'string')
-                throw new Error(`Invalid item format: ${ item }`)
+            let parsedItem: IVerify
 
-            allFiltered[item.contractAddress.toLowerCase()] = item
+            try {
+                parsedItem = JSON.parse(item)
+            }
+            catch (e) {
+                throw new Error(`Invalid item format: ${ item }`)
+            }
+
+            allFiltered[parsedItem.contractAddress.toLowerCase()] = parsedItem
         }
 
         return allFiltered
@@ -77,7 +81,7 @@ export class Storage {
         data,
     }: {
         type: StorageType
-        data: StorageData
+        data: Record<string, string | IVerify>
     }): Promise<void> {
         return await fs.writeFile(
             `${ STORAGE }/${ type }`,

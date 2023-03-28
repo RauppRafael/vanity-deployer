@@ -21,7 +21,7 @@ export interface IVerify {
     constructorArguments?: ConstructorArgument[]
     deployTransaction: ContractTransaction
     confirmations?: number
-    verified?: boolean
+    verified?: number[]
 }
 
 export class Verify {
@@ -48,7 +48,10 @@ export class Verify {
     }
 
     public static async execute(): Promise<void> {
-        const batch = await Storage.all({ type: StorageType.VERIFY })
+        const [batch, chain] = await Promise.all([
+            Storage.all({ type: StorageType.VERIFY }),
+            Hardhat.chainId(),
+        ])
 
         for (const address in batch) {
             const verifyData = batch[address]
@@ -56,7 +59,7 @@ export class Verify {
             if (typeof verifyData === 'string')
                 throw new Error('Invalid verifyData format')
 
-            if (verifyData.verified)
+            if (verifyData.verified?.includes(chain))
                 continue
 
             await Verify._verify(verifyData)
@@ -66,7 +69,9 @@ export class Verify {
                 name: address,
                 value: {
                     ...verifyData,
-                    verified: true,
+                    verified: verifyData.verified
+                        ? [...verifyData.verified, chain]
+                        : [chain],
                 },
             })
         }

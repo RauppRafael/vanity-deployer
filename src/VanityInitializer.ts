@@ -73,10 +73,10 @@ export class VanityInitializer {
                 value: deployerContract.address,
             })
 
-            Verify.add({
+            await Verify.add({
                 contractType: isProxy ? ContractType.Proxy : ContractType.VanityDeployer,
                 contractAddress: deployerContract.address,
-                deployTransaction: deployerContract.deployTransaction,
+                deployTransactionHash: deployerContract.deployTransaction.hash,
                 constructorArguments,
             })
 

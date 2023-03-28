@@ -216,7 +216,7 @@ export class VanityDeployer {
             contractType,
             contractAddress,
             constructorArguments,
-            deployTransaction,
+            deployTransactionHash: deployTransaction.hash,
         })
 
         console.log(`Deployed ${ saveAs }`)

@@ -1,5 +1,4 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
-import { ContractTransaction } from 'ethers'
 import hre from 'hardhat'
 import { Hardhat } from '../Hardhat'
 import {
@@ -19,7 +18,7 @@ export interface IVerify {
     contractType?: ContractType
     contractAddress: string
     constructorArguments?: ConstructorArgument[]
-    deployTransaction: ContractTransaction
+    deployTransactionHash: string
     confirmations?: number
     verified?: number[]
 }
@@ -29,14 +28,14 @@ export class Verify {
         contractType = ContractType.Default,
         contractAddress,
         constructorArguments = [],
-        deployTransaction,
+        deployTransactionHash,
         confirmations = 2,
     }: IVerify): Promise<void> {
         const value: IVerify = {
             contractType,
             contractAddress,
             constructorArguments,
-            deployTransaction,
+            deployTransactionHash,
             confirmations,
         }
 
@@ -78,18 +77,18 @@ export class Verify {
         contractType,
         contractAddress,
         constructorArguments = [],
-        deployTransaction,
+        deployTransactionHash,
         confirmations = 2,
     }: IVerify): Promise<void> {
         try {
-            await deployTransaction.wait(confirmations)
+            await hre.ethers.provider.waitForTransaction(deployTransactionHash, confirmations)
 
             if (contractType === ContractType.Proxy) {
                 await Verify._verifyProxy({
                     contractType,
                     contractAddress,
                     constructorArguments,
-                    deployTransaction,
+                    deployTransactionHash,
                 })
             }
             else if (contractType === ContractType.VanityDeployer) {
@@ -121,7 +120,7 @@ export class Verify {
                     contractType,
                     contractAddress,
                     constructorArguments,
-                    deployTransaction,
+                    deployTransactionHash,
                     confirmations: confirmations + 3,
                 })
             }

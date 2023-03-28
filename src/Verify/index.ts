@@ -49,15 +49,12 @@ export class Verify {
 
     public static async execute(): Promise<void> {
         const [batch, chain] = await Promise.all([
-            Storage.all({ type: StorageType.VERIFY }),
+            Storage.findVerify(),
             Hardhat.chainId(),
         ])
 
         for (const address in batch) {
             const verifyData = batch[address]
-
-            if (typeof verifyData === 'string')
-                throw new Error('Invalid verifyData format')
 
             if (verifyData.verified?.includes(chain))
                 continue

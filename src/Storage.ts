@@ -48,6 +48,21 @@ export class Storage {
         return typeof address === 'string' ? address : undefined
     }
 
+    public static async findVerify() {
+        const all = await this.all({ type: StorageType.VERIFY })
+        const allValues = Object.values(all)
+        const allFiltered: Record<string, IVerify> = {}
+
+        for (const item of allValues) {
+            if (typeof item === 'string')
+                throw new Error(`Invalid item format: ${ item }`)
+
+            allFiltered[item.contractAddress.toLowerCase()] = item
+        }
+
+        return allFiltered
+    }
+
     public static async saveAll({ type, data }: { type: StorageType, data: StorageData }) {
         return await fs.writeFile(
             `${ STORAGE }/${ type }`,

@@ -168,10 +168,7 @@ export class VanityDeployer {
     }
 
     private async _getContract() {
-        const deployerAddress = await Storage.find({
-            type: StorageType.ADDRESS,
-            name: 'DeployerProxy',
-        })
+        const deployerAddress = await Storage.findAddress('DeployerProxy')
 
         if (!deployerAddress)
             throw new Error('Deployer address not found')
@@ -189,7 +186,7 @@ export class VanityDeployer {
     ) {
         const saltKey = saveAs + ':salt'
 
-        let salt = await Storage.find({ type: StorageType.SECRET, name: saltKey })
+        let salt = await Storage.findSecret(saltKey)
 
         if (salt)
             return salt
@@ -215,11 +212,11 @@ export class VanityDeployer {
     ) {
         await Storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contractAddress })
 
-        Verify.add({
+        await Verify.add({
             contractType,
             contractAddress,
             constructorArguments,
-            deployTransaction,
+            deployTransactionHash: deployTransaction.hash,
         })
 
         console.log(`Deployed ${ saveAs }`)
@@ -233,10 +230,7 @@ export class VanityDeployer {
     }
 
     private async initialize() {
-        const deployerAddress = await Storage.find({
-            type: StorageType.ADDRESS,
-            name: 'DeployerProxy',
-        })
+        const deployerAddress = await Storage.findAddress('DeployerProxy')
 
         if (!deployerAddress || (await hre.ethers.provider.getCode(deployerAddress)) === '0x')
             await this.vanityInitializer.initialize()

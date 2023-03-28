@@ -75,4 +75,8 @@ export class Hardhat {
 
         return deployedBytecode !== '0x'
     }
+
+    static async chainId() {
+        return (await hre.ethers.provider.getNetwork()).chainId
+    }
 }

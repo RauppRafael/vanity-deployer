@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs'
+import { IVerify } from './Verify'
 
 const NO_SUCH_FILE = 'no such file or directory'
 const STORAGE = '.vanity'
@@ -6,11 +7,12 @@ const STORAGE = '.vanity'
 export enum StorageType {
     SECRET = 'secrets.json',
     ADDRESS = 'addresses.json',
+    VERIFY = 'verify.json',
     BYTECODE = 'bytecode',
 }
 
 export class Storage {
-    public static async all({ type }: { type: StorageType }) {
+    public static async all({ type }: { type: StorageType }): Promise<Record<string, string>> {
         let contents
 
         await this._openDirectory(STORAGE)
@@ -31,18 +33,56 @@ export class Storage {
         return JSON.parse(contents.toString())
     }
 
-    public static async find({
+    private static async _find({
         type,
         name,
-    }: { type: StorageType, name: string }): Promise<string | undefined> {
+    }: {
+        type: StorageType
+        name: string
+    }): Promise<string | undefined> {
         return (await this.all({ type }))?.[name]
     }
 
     public static async findAddress(name: string): Promise<string | undefined> {
-        return this.find({ type: StorageType.ADDRESS, name })
+        const address = await this._find({ type: StorageType.ADDRESS, name })
+
+        return typeof address === 'string' ? address : undefined
     }
 
-    public static async saveAll({ type, data }: { type: StorageType, data: string[] }) {
+    public static async findSecret(name: string): Promise<string | undefined> {
+        const secret = await this._find({ type: StorageType.SECRET, name })
+
+        return typeof secret === 'string' ? secret : undefined
+    }
+
+    public static async findVerify(): Promise<Record<string, IVerify>> {
+        const all = await this.all({ type: StorageType.VERIFY })
+        const allValues = Object.values(all)
+        const allFiltered: Record<string, IVerify> = {}
+
+        for (const item of allValues) {
+            let parsedItem: IVerify
+
+            try {
+                parsedItem = JSON.parse(item)
+            }
+            catch (e) {
+                throw new Error(`Invalid item format: ${ item }`)
+            }
+
+            allFiltered[parsedItem.contractAddress.toLowerCase()] = parsedItem
+        }
+
+        return allFiltered
+    }
+
+    public static async saveAll({
+        type,
+        data,
+    }: {
+        type: StorageType
+        data: Record<string, string | IVerify>
+    }): Promise<void> {
         return await fs.writeFile(
             `${ STORAGE }/${ type }`,
             JSON.stringify(data, null, 4),
@@ -53,8 +93,17 @@ export class Storage {
         type,
         name,
         value,
-    }: { type: StorageType, name: string, value: string }) {
+    }: {
+        type: StorageType
+        name: string
+        value: string | IVerify
+    }): Promise<string | undefined> {
+        const valueIsString = typeof value === 'string'
+
         if (type === StorageType.BYTECODE) {
+            if (!valueIsString)
+                throw new Error('Invalid data format')
+
             await this._openDirectory(STORAGE)
             await this._openDirectory(`${ STORAGE }/${ StorageType.BYTECODE }`)
 
@@ -67,12 +116,14 @@ export class Storage {
 
         const all = await this.all({ type })
 
-        all[name] = value.toLowerCase()
+        all[name] = valueIsString
+            ? value.toLowerCase()
+            : JSON.stringify(value)
 
         await this.saveAll({ type, data: all })
     }
 
-    private static async _openDirectory(path: string) {
+    private static async _openDirectory(path: string): Promise<void> {
         try {
             await (await fs.opendir(path)).close()
         }

@@ -51,6 +51,12 @@ export class Storage {
         return typeof address === 'string' ? address : undefined
     }
 
+    public static async findSecret(name: string): Promise<string | undefined> {
+        const secret = await this.find({ type: StorageType.SECRET, name })
+
+        return typeof secret === 'string' ? secret : undefined
+    }
+
     public static async findVerify(): Promise<Record<string, IVerify>> {
         const all = await this.all({ type: StorageType.VERIFY })
         const allValues = Object.values(all)

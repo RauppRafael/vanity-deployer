@@ -99,10 +99,11 @@ export class VanityInitializer {
     }
 
     private async getContractDeployer(isProxy: boolean) {
-        let privateKey = await Storage.find({
-            type: StorageType.SECRET,
-            name: isProxy ? 'DeployerProxy:PrivateKey' : 'Deployer:PrivateKey',
-        })
+        let privateKey = await Storage.findSecret(
+            isProxy
+                ? 'DeployerProxy:PrivateKey'
+                : 'Deployer:PrivateKey',
+        )
 
         if (!privateKey) {
             privateKey = await CommandBuilder.profanity(this.matcher)

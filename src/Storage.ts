@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs'
+import { IVerify } from './Verify'
 
 const NO_SUCH_FILE = 'no such file or directory'
 const STORAGE = '.vanity'
@@ -6,11 +7,14 @@ const STORAGE = '.vanity'
 export enum StorageType {
     SECRET = 'secrets.json',
     ADDRESS = 'addresses.json',
+    VERIFY = 'verify.json',
     BYTECODE = 'bytecode',
 }
 
+type StorageData = Record<string, string | IVerify>
+
 export class Storage {
-    public static async all({ type }: { type: StorageType }) {
+    public static async all({ type }: { type: StorageType }): Promise<StorageData> {
         let contents
 
         await this._openDirectory(STORAGE)
@@ -34,15 +38,17 @@ export class Storage {
     public static async find({
         type,
         name,
-    }: { type: StorageType, name: string }): Promise<string | undefined> {
+    }: { type: StorageType, name: string }): Promise<string | IVerify | undefined> {
         return (await this.all({ type }))?.[name]
     }
 
     public static async findAddress(name: string): Promise<string | undefined> {
-        return this.find({ type: StorageType.ADDRESS, name })
+        const address = await this.find({ type: StorageType.ADDRESS, name })
+
+        return typeof address === 'string' ? address : undefined
     }
 
-    public static async saveAll({ type, data }: { type: StorageType, data: string[] }) {
+    public static async saveAll({ type, data }: { type: StorageType, data: StorageData }) {
         return await fs.writeFile(
             `${ STORAGE }/${ type }`,
             JSON.stringify(data, null, 4),
@@ -53,8 +59,13 @@ export class Storage {
         type,
         name,
         value,
-    }: { type: StorageType, name: string, value: string }) {
+    }: { type: StorageType, name: string, value: string | IVerify }) {
+        const valueIsString = typeof value === 'string'
+
         if (type === StorageType.BYTECODE) {
+            if (!valueIsString)
+                throw new Error('Invalid data format')
+
             await this._openDirectory(STORAGE)
             await this._openDirectory(`${ STORAGE }/${ StorageType.BYTECODE }`)
 
@@ -67,7 +78,9 @@ export class Storage {
 
         const all = await this.all({ type })
 
-        all[name] = value.toLowerCase()
+        all[name] = valueIsString
+            ? value.toLowerCase()
+            : JSON.stringify(value)
 
         await this.saveAll({ type, data: all })
     }

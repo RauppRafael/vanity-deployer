@@ -1,6 +1,7 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ContractTransaction } from 'ethers'
 import hre from 'hardhat'
+import { Hardhat } from '../Hardhat'
 import {
     ERC1967ProxyArtifact,
     UpgradesBuildInfoArtifact,
@@ -8,44 +9,67 @@ import {
     VanityDeployerBuildInfoArtifact,
 } from '../helpers/artifacts'
 import { getERC1967ProxyFactory } from '../helpers/factories'
-import { Hardhat } from '../Hardhat'
 import { sleep } from '../helpers/sleep'
 import { ConstructorArgument } from '../helpers/types'
+import { Storage, StorageType } from '../Storage'
 import { Etherscan } from './Etherscan'
 import { ContractType } from './interfaces'
 
-interface IVerify {
+export interface IVerify {
     contractType?: ContractType
     contractAddress: string
     constructorArguments?: ConstructorArgument[]
     deployTransaction: ContractTransaction
     confirmations?: number
+    verified?: boolean
 }
 
 export class Verify {
-    public static batch: IVerify[] = []
-
-    public static add({
+    public static async add({
         contractType = ContractType.Default,
         contractAddress,
         constructorArguments = [],
         deployTransaction,
         confirmations = 2,
-    }: IVerify): void {
-        Verify.batch.push({
+    }: IVerify): Promise<void> {
+        const value: IVerify = {
             contractType,
             contractAddress,
             constructorArguments,
             deployTransaction,
             confirmations,
+        }
+
+        await Storage.save({
+            type: StorageType.VERIFY,
+            name: contractAddress.toLowerCase(),
+            value,
         })
     }
 
     public static async execute(): Promise<void> {
-        for (const params of Verify.batch)
-            await Verify._verify(params)
+        const batch = await Storage.all({ type: StorageType.VERIFY })
 
-        Verify.batch = []
+        for (const address in batch) {
+            const verifyData = batch[address]
+
+            if (typeof verifyData === 'string')
+                throw new Error('Invalid verifyData format')
+
+            if (verifyData.verified)
+                continue
+
+            await Verify._verify(verifyData)
+
+            await Storage.save({
+                type: StorageType.VERIFY,
+                name: address,
+                value: {
+                    ...verifyData,
+                    verified: true,
+                },
+            })
+        }
     }
 
     private static async _verify({

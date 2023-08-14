@@ -13,7 +13,7 @@ import { Verify } from './Verify'
 import { ContractType } from './Verify/interfaces'
 
 export class VanityDeployer {
-    private readonly matcher: Matcher
+    public readonly matcher: Matcher
     private readonly vanityInitializer: VanityInitializer
 
     public constructor({

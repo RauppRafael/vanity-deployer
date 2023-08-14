@@ -11,9 +11,9 @@
     "author": "Rafael Raupp <raupperino@gmail.com>",
     "license": "UNLICENSED",
     "dependencies": {
-        "@openzeppelin/contracts": "4.8.3",
-        "@openzeppelin/contracts-upgradeable": "4.8.3",
-        "@openzeppelin/upgrades-core": "1.24.1",
+        "@openzeppelin/contracts": "4.9.3",
+        "@openzeppelin/contracts-upgradeable": "4.9.3",
+        "@openzeppelin/upgrades-core": "1.28.0",
         "@typechain/ethers-v5": "^10.1.0",
         "@typechain/hardhat": "^6.1.5",
         "dayjs": "^1.11.7",

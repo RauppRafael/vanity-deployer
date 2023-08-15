@@ -16,12 +16,7 @@ export class Bytecode {
             factory?: ContractFactory
         } = {},
     ) {
-        if (!factory)
-            factory = await hre.ethers.getContractFactory(name)
-
-        const bytecode = constructorArguments?.length
-            ? factory.bytecode + factory.interface.encodeDeploy(constructorArguments).replace('0x', '')
-            : factory.bytecode
+        const bytecode = await Bytecode.getBytecode(name, { constructorArguments, factory })
 
         const filename = await Storage.save({
             type: StorageType.BYTECODE,
@@ -33,5 +28,23 @@ export class Bytecode {
             throw new Error('Filename cannot be undefined')
 
         return { filename, bytecode }
+    }
+
+    public static async getBytecode(
+        name: string,
+        {
+            constructorArguments,
+            factory,
+        }: {
+            constructorArguments?: ConstructorArgument[]
+            factory?: ContractFactory
+        } = {},
+    ) {
+        if (!factory)
+            factory = await hre.ethers.getContractFactory(name)
+
+        return constructorArguments?.length
+            ? factory.bytecode + factory.interface.encodeDeploy(constructorArguments).replace('0x', '')
+            : factory.bytecode
     }
 }

@@ -20,7 +20,7 @@ export interface IVerify {
     constructorArguments?: ConstructorArgument[]
     deployTransactionHash: string
     confirmations?: number
-    verified?: number[]
+    verified?: bigint[]
 }
 
 export class Verify {

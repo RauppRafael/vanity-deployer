@@ -140,7 +140,7 @@ export class Etherscan {
             )
         }
 
-        return await response.body.json()
+        return await response.body.json() as EtherscanResponseBody
     }
 
     /**
@@ -155,4 +155,3 @@ export class Etherscan {
         return { key, endpoints }
     }
 }
-

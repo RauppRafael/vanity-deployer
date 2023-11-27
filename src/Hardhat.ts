@@ -1,7 +1,6 @@
 import hre from 'hardhat'
-import { BigNumber, Wallet } from 'ethers'
-import { TransactionResponse } from '@ethersproject/abstract-provider'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { Wallet, TransactionResponse } from 'ethers'
+import { SignerWithAddress } from '@nomicfoundation/hardhat-ethers/signers'
 
 export class Hardhat {
     static async mainSigner() {
@@ -13,7 +12,7 @@ export class Hardhat {
     }
 
     static parseEther(amount: number | string) {
-        return hre.ethers.utils.parseEther(
+        return hre.ethers.parseEther(
             typeof amount === 'number'
                 ? amount.toString()
                 : amount,
@@ -39,9 +38,9 @@ export class Hardhat {
         const gasPrice = feeData.gasPrice
 
         if (!gasPrice)
-            return BigNumber.from('0')
+            return 0n
 
-        return gasPrice.add(gasPrice.mul(10).div(100))
+        return gasPrice + (gasPrice * 10n / 100n)
     }
 
     static async transferAllFunds(from: SignerWithAddress | Wallet, to: SignerWithAddress | Wallet) {
@@ -51,10 +50,10 @@ export class Hardhat {
             to: to.address,
             gasPrice: gasPrice,
         })
-        const gasCost = hre.ethers.BigNumber.from(gasLimit).mul(gasPrice)
-        const value = (await Hardhat.balanceOf(from)).sub(gasCost)
+        const gasCost = gasLimit * gasPrice
+        const value = await Hardhat.balanceOf(from) - gasCost
 
-        if (value.gt(0)) {
+        if (value > 0) {
             await this.awaitConfirmation(
                 from.sendTransaction({
                     to: to.address,

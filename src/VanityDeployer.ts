@@ -100,7 +100,7 @@ export class VanityDeployer {
             implementation = await this.deploy(name, saveAs, overrides)
 
         const signer = await Hardhat.mainSigner()
-        const constructorArguments = [implementation.address, []]
+        const constructorArguments = [await implementation.getAddress(), []]
         const proxySaveAs = `${ saveAs }Proxy`
 
         const { deployer, salt, bytecode } = await this._getContractInfo(

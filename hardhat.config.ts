@@ -1,5 +1,5 @@
 import '@typechain/hardhat'
-import '@nomiclabs/hardhat-ethers'
+import '@nomicfoundation/hardhat-ethers'
 
 const getVersionBase = (version: string) => ({
     version,
@@ -18,7 +18,6 @@ module.exports = {
     },
     typechain: {
         outDir: 'src/types',
-        target: 'ethers-v5',
+        target: 'ethers-v6',
     },
 }
-

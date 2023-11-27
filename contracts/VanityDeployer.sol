@@ -47,7 +47,7 @@ contract VanityDeployer is OwnableUpgradeable, UUPSUpgradeable {
         emit DeployedContract(addr, true);
     }
 
-    function getAddress(
+    function calculateAddress(
         bytes memory code,
         uint _salt
     ) public view returns (address) {

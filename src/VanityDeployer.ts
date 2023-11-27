@@ -1,4 +1,9 @@
-import { Contract, ContractFactory, ContractTransaction, Overrides } from 'ethers'
+import {
+    Contract,
+    ContractFactory,
+    ContractTransactionResponse,
+    Overrides,
+} from 'ethers'
 import hre from 'hardhat'
 import { VanityDeployer__factory } from './types'
 import { Bytecode } from './Bytecode'
@@ -39,7 +44,7 @@ export class VanityDeployer {
 
         return this._verifyAndStoreAddress<T>(
             ContractType.Default,
-            await deployer.getAddress(bytecode, salt),
+            await deployer.calculateAddress(bytecode, salt),
             [],
             name,
             saveAs,
@@ -68,7 +73,7 @@ export class VanityDeployer {
 
         return await this._verifyAndStoreAddress<T>(
             ContractType.Default,
-            await deployer.getAddress(bytecode, salt),
+            await deployer.calculateAddress(bytecode, salt),
             [],
             name,
             saveAs,
@@ -95,7 +100,7 @@ export class VanityDeployer {
             implementation = await this.deploy(name, saveAs, overrides)
 
         const signer = await Hardhat.mainSigner()
-        const constructorArguments = [implementation.address, []]
+        const constructorArguments = [await implementation.getAddress(), []]
         const proxySaveAs = `${ saveAs }Proxy`
 
         const { deployer, salt, bytecode } = await this._getContractInfo(
@@ -112,7 +117,7 @@ export class VanityDeployer {
             overrides,
         )
 
-        const proxyAddress = await deployer.getAddress(bytecode, salt)
+        const proxyAddress = await deployer.calculateAddress(bytecode, salt)
 
         await this._verifyAndStoreAddress(
             ContractType.Proxy,
@@ -139,13 +144,18 @@ export class VanityDeployer {
             )
         ).deploy(...constructorArguments, overrides)
 
+        const deployTransaction = contract.deploymentTransaction()
+
+        if (!deployTransaction)
+            throw new Error(`Unable to retrieve deploy transaction for ${ name }`)
+
         return this._verifyAndStoreAddress<T>(
             ContractType.Default,
-            contract.address,
+            await contract.getAddress(),
             constructorArguments,
             name,
             saveAs,
-            contract.deployTransaction,
+            deployTransaction,
         )
     }
 
@@ -162,7 +172,7 @@ export class VanityDeployer {
             constructorArguments,
             factory,
         })
-        const salt = await this._getSalt(filename, saveAs, deployer.address)
+        const salt = await this._getSalt(filename, saveAs, await deployer.getAddress())
 
         return { deployer, salt, bytecode }
     }
@@ -208,7 +218,7 @@ export class VanityDeployer {
         constructorArguments: ConstructorArgument[],
         name: string,
         saveAs: string,
-        deployTransaction: ContractTransaction,
+        deployTransaction: ContractTransactionResponse,
     ) {
         await Storage.save({ type: StorageType.ADDRESS, name: saveAs, value: contractAddress })
 

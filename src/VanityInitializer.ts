@@ -1,4 +1,4 @@
-import { Contract, Wallet } from 'ethers'
+import { Wallet, Interface } from 'ethers'
 import hre from 'hardhat'
 import { CommandBuilder } from './CommandBuilder'
 import { getERC1967ProxyFactory, getVanityDeployerFactory } from './helpers/factories'
@@ -38,7 +38,7 @@ export class VanityInitializer {
 
             const factory = await this.getDeployerFactory(contractDeployer, isProxy)
 
-            let deployerContract: Contract | undefined
+            let deployerContract: Awaited<ReturnType<typeof factory.deploy>>
             let constructorArguments: ConstructorArgument[] = []
 
             if (isProxy) {
@@ -49,7 +49,7 @@ export class VanityInitializer {
 
                 constructorArguments = [
                     implementationAddress,
-                    (new hre.ethers.utils.Interface(['function initialize(address) external']))
+                    (new Interface(['function initialize(address) external']))
                         .encodeFunctionData('initialize', [mainSigner.address]),
                 ]
 
@@ -64,19 +64,25 @@ export class VanityInitializer {
                 )
             }
 
-            await Hardhat.awaitConfirmation(deployerContract.deployTransaction)
+            const deployerContractAddress = await deployerContract.getAddress()
+            const deploymentTransaction = deployerContract.deploymentTransaction()
+
+            if (!deploymentTransaction)
+                throw new Error(`Unable to find transaction hash for ${ deployerContractAddress }`)
+
+            await Hardhat.awaitConfirmation(deploymentTransaction)
             await Hardhat.transferAllFunds(contractDeployer, mainSigner)
 
             await Storage.save({
                 type: StorageType.ADDRESS,
                 name: isProxy ? 'DeployerProxy' : 'Deployer',
-                value: deployerContract.address,
+                value: deployerContractAddress,
             })
 
             await Verify.add({
                 contractType: isProxy ? ContractType.Proxy : ContractType.VanityDeployer,
-                contractAddress: deployerContract.address,
-                deployTransactionHash: deployerContract.deployTransaction.hash,
+                contractAddress: deployerContractAddress,
+                deployTransactionHash: deploymentTransaction.hash,
                 constructorArguments,
             })
 

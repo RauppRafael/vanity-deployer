@@ -4,7 +4,10 @@
     "description": "Deploy ethereum smart contracts with a vanity address",
     "main": "dist/index.js",
     "scripts": {
-        "deploy": "tsc && cp -r src/executables dist/src && npm version patch && npm publish --access public",
+        "build": "npm run build:contracts && npm run build:ts",
+        "build:contracts": "npx hardhat compile",
+        "build:ts": "tsc && cp -r src/executables dist/src",
+        "deploy": "npm run build && npm version patch && npm publish --access public",
         "lint": "eslint . --ext=.ts",
         "lint:fix": "npm run lint -- --fix"
     },
@@ -14,27 +17,25 @@
         "@openzeppelin/contracts": "4.9.3",
         "@openzeppelin/contracts-upgradeable": "4.9.3",
         "@openzeppelin/upgrades-core": "1.28.0",
-        "@typechain/ethers-v5": "^10.1.0",
         "@typechain/hardhat": "^6.1.5",
         "dayjs": "^1.11.7",
+        "ethers": "^6.1.0",
         "tree-kill": "^1.2.2"
     },
     "devDependencies": {
-        "@nomiclabs/hardhat-ethers": "^2.0.0",
+        "@nomicfoundation/hardhat-ethers": "^3.0.5",
         "@nomiclabs/hardhat-etherscan": "^3.1.0",
         "@ryze-blockchain/eslint-config": "^0.0.18",
-        "@typechain/ethers-v5": "^10.1.0",
-        "@typechain/hardhat": "^6.1.5",
+        "@typechain/hardhat": "^9.1.0",
         "@types/mocha": "^10.0.1",
         "eslint": "^8.35.0",
-        "hardhat": "^2.0.2",
+        "hardhat": "^2.19.1",
         "ts-node": "^10.9.1"
     },
     "peerDependencies": {
-        "@nomiclabs/hardhat-ethers": "^2.0.0",
+        "@nomicfoundation/hardhat-ethers": "^3.0.5",
         "@nomiclabs/hardhat-etherscan": "^3.1.0",
-        "@typechain/ethers-v5": "^10.1.0",
-        "@typechain/hardhat": "^6.1.5",
-        "hardhat": "^2.0.2"
+        "@typechain/hardhat": "^9.1.0",
+        "hardhat": "^2.19.1"
     }
 }

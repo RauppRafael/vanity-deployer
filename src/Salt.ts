@@ -1,4 +1,4 @@
-import { utils } from 'ethers'
+import { solidityPackedKeccak256, keccak256 } from 'ethers'
 import { Bytecode } from './Bytecode'
 import { CommandBuilder } from './CommandBuilder'
 import { ConstructorArgument } from './helpers/types'
@@ -66,9 +66,9 @@ export class Salt {
     }
 
     public computeAddress(initCode: string, salt: string) {
-        const computedHash = utils.solidityKeccak256(
+        const computedHash = solidityPackedKeccak256(
             ['bytes1', 'address', 'bytes32', 'bytes32'],
-            ['0xff', this.deployer, salt, utils.keccak256(initCode)],
+            ['0xff', this.deployer, salt, keccak256(initCode)],
         )
 
         return `0x${ computedHash.slice(-40) }`

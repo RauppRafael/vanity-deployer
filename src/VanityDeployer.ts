@@ -44,7 +44,7 @@ export class VanityDeployer {
 
         return this._verifyAndStoreAddress<T>(
             ContractType.Default,
-            await deployer.getAddress(bytecode, salt),
+            await deployer.calculateAddress(bytecode, salt),
             [],
             name,
             saveAs,

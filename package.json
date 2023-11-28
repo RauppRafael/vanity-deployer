@@ -17,6 +17,7 @@
         "@openzeppelin/contracts": "4.9.3",
         "@openzeppelin/contracts-upgradeable": "4.9.3",
         "@openzeppelin/upgrades-core": "1.28.0",
+        "@typechain/hardhat": "^8.0.3",
         "dayjs": "^1.11.7",
         "ethers": "^6.1.0",
         "tree-kill": "^1.2.2"
@@ -34,7 +35,7 @@
     "peerDependencies": {
         "@nomicfoundation/hardhat-ethers": "^3.0.5",
         "@nomiclabs/hardhat-etherscan": "^3.1.0",
-        "@typechain/hardhat": "^9.1.0",
+        "@typechain/hardhat": "^8.0.3",
         "hardhat": "^2.19.1"
     }
 }

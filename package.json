@@ -26,7 +26,6 @@
         "@nomicfoundation/hardhat-ethers": "^3.0.5",
         "@nomiclabs/hardhat-etherscan": "^3.1.0",
         "@ryze-blockchain/eslint-config": "^0.0.18",
-        "@typechain/hardhat": "^9.1.0",
         "@types/mocha": "^10.0.1",
         "eslint": "^8.35.0",
         "hardhat": "^2.19.1",

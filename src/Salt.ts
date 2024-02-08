@@ -58,7 +58,7 @@ export class Salt {
             {
                 constructorArguments: [
                     implementationAddress,
-                    [],
+                    '0x',
                 ],
                 saveAs: saveAs + 'Proxy',
             },

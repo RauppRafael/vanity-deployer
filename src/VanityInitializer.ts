@@ -10,7 +10,10 @@ import { Verify } from './Verify'
 import { ContractType } from './Verify/interfaces'
 
 export class VanityInitializer {
-    constructor(private readonly matcher: Matcher) {
+    constructor(
+        private readonly matcher: Matcher,
+        private readonly commandBuilder: CommandBuilder,
+    ) {
     }
 
     public async initialize(): Promise<void> {
@@ -112,7 +115,7 @@ export class VanityInitializer {
         )
 
         if (!privateKey) {
-            privateKey = await CommandBuilder.profanity(this.matcher)
+            privateKey = await this.commandBuilder.profanity(this.matcher)
 
             await Storage.save({
                 type: StorageType.SECRET,

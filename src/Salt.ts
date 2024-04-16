@@ -8,6 +8,7 @@ import { Storage, StorageType } from './Storage'
 export class Salt {
     public constructor(
         public readonly matcher: Matcher,
+        public readonly commandBuilder: CommandBuilder,
         public readonly deployer: string,
     ) {
     }
@@ -33,7 +34,7 @@ export class Salt {
             constructorArguments,
         })
 
-        salt = await CommandBuilder.eradicate(
+        salt = await this.commandBuilder.eradicate(
             this.deployer,
             filename,
             this.matcher,

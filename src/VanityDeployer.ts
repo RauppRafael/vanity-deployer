@@ -7,7 +7,7 @@ import {
 import hre from 'hardhat'
 import { VanityDeployer__factory } from './types'
 import { Bytecode } from './Bytecode'
-import { CommandBuilder } from './CommandBuilder'
+import { CommandBuilder, CommandBuilderOptions } from './CommandBuilder'
 import { Hardhat } from './Hardhat'
 import { getERC1967ProxyFactory } from './helpers/factories'
 import { ConstructorArgument } from './helpers/types'
@@ -20,16 +20,20 @@ import { ContractType } from './Verify/interfaces'
 export class VanityDeployer {
     public readonly matcher: Matcher
     private readonly vanityInitializer: VanityInitializer
+    private readonly commandBuilder: CommandBuilder
 
     public constructor({
         startsWith,
         endsWith,
+        commandBuilderOptions,
     }: {
         startsWith?: string
         endsWith?: string
+        commandBuilderOptions?: CommandBuilderOptions
     }) {
         this.matcher = new Matcher(startsWith || '', endsWith || '')
-        this.vanityInitializer = new VanityInitializer(this.matcher)
+        this.commandBuilder = new CommandBuilder(commandBuilderOptions)
+        this.vanityInitializer = new VanityInitializer(this.matcher, this.commandBuilder)
     }
 
     public async deploy<T extends Contract>(
@@ -201,7 +205,7 @@ export class VanityDeployer {
         if (salt)
             return salt
 
-        salt = await CommandBuilder.eradicate(
+        salt = await this.commandBuilder.eradicate(
             deployerAddress,
             bytecodeFilename,
             this.matcher,

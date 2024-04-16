@@ -7,29 +7,39 @@ import { sleep } from './helpers/sleep'
 import { promises as fs } from 'fs'
 import os from 'os'
 
+export interface CommandBuilderOptions {
+    skip?: string
+}
+
 export class CommandBuilder {
     private static MIN_DURATION = 3_500
+    private readonly optionsString: string = ''
 
-    public static eradicate(
+    public constructor(public readonly options: CommandBuilderOptions = {}) {
+        if (options.skip)
+            this.optionsString += `--skip ${ options.skip }`
+    }
+
+    public eradicate(
         deployer: string,
         bytecodeFilePath: string,
         matcher: Matcher,
     ) {
-        const executable = this._getExecutable('eradicate2')
+        const executable = CommandBuilder._getExecutable('eradicate2')
         const matchingString = matcher.get(MatcherType.COMMAND)
 
-        return this.run(
-            `"${ executable }" -A ${ deployer } -i ${ bytecodeFilePath } --matching ${ matchingString }`,
+        return CommandBuilder.run(
+            `"${ executable }" -A ${ deployer } -i ${ bytecodeFilePath } --matching ${ matchingString } ${ this.optionsString }`,
             matcher,
         )
     }
 
-    public static profanity(matcher: Matcher) {
-        const executable = this._getExecutable('profanity')
+    public profanity(matcher: Matcher) {
+        const executable = CommandBuilder._getExecutable('profanity')
         const matchingString = matcher.get(MatcherType.COMMAND)
 
-        return this.run(
-            `"${ executable }" --contract --matching ${ matchingString }`,
+        return CommandBuilder.run(
+            `"${ executable }" --contract --matching ${ matchingString } ${ this.optionsString }`,
             matcher,
         )
     }
@@ -40,7 +50,7 @@ export class CommandBuilder {
         const addressMatcher = matcher.get(MatcherType.ADDRESS)
         const secretMatcher = matcher.get(MatcherType.SECRET)
         const initialTimestamp = dayjs()
-        const child = await exec(command)
+        const child = exec(command)
 
         const result = await new Promise<{
             result: string,

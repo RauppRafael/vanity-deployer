@@ -2,7 +2,7 @@ import ERC1967Proxy from '@openzeppelin/upgrades-core/artifacts/@openzeppelin/co
 import UpgradesBuildInfo from '@openzeppelin/upgrades-core/artifacts/build-info.json'
 
 import VanityDeployer from '../../artifacts/contracts/VanityDeployer.sol/VanityDeployer.json'
-import VanityDeployerBuildInfo from '../../artifacts/build-info/5938466a8d937f61d995799b999eaeb1.json'
+import VanityDeployerBuildInfo from '../../artifacts/build-info/e3d97e423946aba795cb81d44a21c837.json'
 
 export const ERC1967ProxyArtifact = ERC1967Proxy
 export const UpgradesBuildInfoArtifact = UpgradesBuildInfo
